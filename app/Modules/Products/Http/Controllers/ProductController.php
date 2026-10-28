@@ -1,27 +1,82 @@
 <?php
+
 namespace App\Modules\Products\Http\Controllers;
-use App\Http\Controllers\Controller;
+
+use App\Http\Controllers\Api\BaseApiController;
 use Illuminate\Http\Request;
+use App\Modules\Products\Http\Requests\StoreProductRequest;
+use App\Modules\Products\Http\Resources\ProductResource;
 use App\Modules\Products\Models\Product;
 use Illuminate\Support\Facades\Storage;
-class ProductController extends Controller
+
+class ProductController extends BaseApiController
 {
     public function index(Request $request)
     {
         $query = Product::query();
-        if ($request->has('category_id')) $query->where('category_id', $request->category_id);
-        if ($request->has('search')) $query->where('name', 'like', '%' . $request->search . '%');
-        return response()->json($query->paginate(15));
+
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        if ($request->has('search')) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+
+        return $this->successDataResponse($query->paginate(15), 'Products retrieved successfully');
     }
-    public function show($id) { $p = Product::find($id); if(!$p) return response()->json(['error'=>['message'=>'Not found','code'=>404,'details'=>[]]],404); return $p; }
-    public function store(Request $request)
+
+    public function show($id)
     {
-        $request->validate(['name'=>'required','description'=>'nullable','price'=>'required|numeric','category_id'=>'required|exists:categories,id','image'=>'nullable|image']);
-        $data = $request->all();
-        if($request->hasFile('image')) $data['image'] = $request->file('image')->store('products', 'public');
-        $p = Product::create($data);
-        return response()->json($p, 201);
+        $product = Product::find($id);
+
+        if (! $product) {
+            return $this->notFoundResponse('Product not found');
+        }
+
+        return $this->successDataResponse($product, 'Product details');
     }
-    public function update(Request $request, $id) { $p = Product::findOrFail($id); $p->update($request->all()); return $p; }
-    public function destroy($id) { Product::findOrFail($id)->delete(); return response()->json(null,204); }
+
+    public function store(StoreProductRequest $request)
+    {
+        $data = $request->validated();
+
+        if ($request->hasFile('image')) {
+            $data['image'] = $request->file('image')->store('products', 'public');
+        }
+
+        $product = Product::create($data);
+
+        return $this->createdResponse(ProductResource::make($product), 'Product created successfully');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $product = Product::find($id);
+
+        if (! $product) {
+            return $this->notFoundResponse('Product not found');
+        }
+
+        $product->update($request->all());
+
+        return $this->successDataResponse($product, 'Product updated successfully');
+    }
+
+    public function destroy($id)
+    {
+        $product = Product::find($id);
+
+        if (! $product) {
+            return $this->notFoundResponse('Product not found');
+        }
+
+        if ($product->image) {
+            Storage::disk('public')->delete($product->image);
+        }
+
+        $product->delete();
+
+        return $this->successResponse('Product deleted successfully');
+    }
 }
