@@ -10,6 +10,7 @@ import 'providers/notifications_provider.dart';
 import 'services/auth_service.dart';
 import 'services/catalog_service.dart';
 import 'services/commerce_service.dart';
+import 'services/notification_service.dart';
 import 'views/splash/splash_screen.dart';
 
 void main() {
@@ -28,7 +29,7 @@ class ShopCustomerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CatalogProvider(CatalogService())..load()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => OrdersProvider(CommerceService())),
-        ChangeNotifierProvider(create: (_) => NotificationsProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationsProvider(NotificationService())),
       ],
       child: MaterialApp(
         title: 'Shop',

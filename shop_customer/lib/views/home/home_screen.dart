@@ -28,7 +28,7 @@ class HomeScreen extends StatelessWidget {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('THE SLOW LIVING EDIT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
             const SizedBox(height: 9), const Text('Small details.\\nBetter everyday.', style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800, height: 1.1)),
-            const SizedBox(height: 14), FilledButton.tonal(onPressed: () => catalog.setCategory('Home'), child: const Text('Explore home')),
+            const SizedBox(height: 14), FilledButton.tonal(onPressed: () => catalog.setCategory('Electronics'), child: const Text('Explore electronics')),
           ])),
           const Icon(Icons.spa_outlined, size: 76, color: Color(0xFF285D55)),
         ]),

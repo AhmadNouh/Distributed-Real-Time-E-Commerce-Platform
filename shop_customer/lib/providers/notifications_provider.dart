@@ -1,17 +1,39 @@
 import 'package:flutter/foundation.dart';
-
-class ShopNotification {
-  const ShopNotification({required this.title, required this.message, required this.time, this.read = false});
-  final String title;
-  final String message;
-  final String time;
-  final bool read;
-}
+import '../models/shop_notification.dart';
+import '../services/api_client.dart';
+import '../services/notification_service.dart';
 
 class NotificationsProvider extends ChangeNotifier {
-  final List<ShopNotification> notifications = const [
-    ShopNotification(title: 'Welcome to Shop', message: 'Your little corner for thoughtful finds is ready.', time: 'Just now'),
-    ShopNotification(title: 'Delivery updates', message: 'Your order status will appear here after checkout.', time: 'Today'),
-    ShopNotification(title: 'A little reminder', message: 'Discover new pieces selected for everyday living.', time: 'Yesterday'),
-  ];
+  NotificationsProvider(this._service);
+  final NotificationService _service;
+  List<ShopNotification> notifications = [];
+  bool isLoading = false;
+  String? error;
+
+  int get unreadCount => notifications.where((n) => !n.read).length;
+
+  Future<void> load() async {
+    isLoading = true;
+    error = null;
+    notifyListeners();
+    try {
+      notifications = await _service.getNotifications();
+    } catch (e) {
+      error = ApiClient.errorMessage(e);
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> markAsRead(ShopNotification item) async {
+    if (item.read) return;
+    try {
+      await _service.markAsRead(item.id);
+      notifications = [
+        for (final n in notifications) n.id == item.id ? n.copyWith(read: true) : n,
+      ];
+      notifyListeners();
+    } catch (_) {}
+  }
 }

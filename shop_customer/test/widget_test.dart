@@ -1,30 +1,29 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:shop_customer/main.dart';
+import 'package:shop_customer/models/category.dart';
+import 'package:shop_customer/models/product.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('Product.fromJson reads the API product shape', () {
+    final product = Product.fromJson(
+      {
+        'id': 3,
+        'name': 'Product 3',
+        'description': 'Desc',
+        'price': '29.99',
+        'category_id': 2,
+        'image': 'products/x.jpg',
+      },
+      categoryNames: {2: 'Books'},
+    );
+    expect(product.id, '3');
+    expect(product.price, 29.99);
+    expect(product.category, 'Books');
+    expect(product.imageUrl, endsWith('/storage/products/x.jpg'));
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  test('ProductCategory.fromJson reads id and name', () {
+    final category = ProductCategory.fromJson({'id': 1, 'name': 'Electronics'});
+    expect(category.id, 1);
+    expect(category.name, 'Electronics');
   });
 }

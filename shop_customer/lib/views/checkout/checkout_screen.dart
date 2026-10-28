@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/widgets/app_button.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/orders_provider.dart';
+import '../../services/api_client.dart';
 import '../orders/order_confirmation_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -25,13 +26,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cart = context.read<CartProvider>();
     setState(() => _placing = true);
     try {
-      final summary = cart.items.map((i) => '${i.product.name} x${i.quantity}').join(', ');
-      final order = await context.read<OrdersProvider>().checkout(total: cart.total, summary: summary);
+      final order = await context.read<OrdersProvider>().checkout(cart.items);
       cart.clear();
       if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => OrderConfirmationScreen(order: order)));
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not place order. Please try again.')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiClient.errorMessage(e))));
     } finally { if (mounted) setState(() => _placing = false); }
   }
 

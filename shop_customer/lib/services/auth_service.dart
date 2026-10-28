@@ -1,4 +1,3 @@
-import '../core/config/app_config.dart';
 import '../models/user_profile.dart';
 import 'api_client.dart';
 import 'token_storage_service.dart';
@@ -14,35 +13,55 @@ class AuthService {
   final TokenStorageService _storage = TokenStorageService();
 
   Future<AuthResult> login(String email, String password) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(const Duration(milliseconds: 450));
-      return AuthResult(user: UserProfile(name: email.split('@').first, email: email), token: 'mock-token');
-    }
-    final response = await _api.dio.post('/api/auth/login', data: {'email': email, 'password': password});
-    final data = Map<String, dynamic>.from(response.data as Map);
-    final user = UserProfile.fromJson(Map<String, dynamic>.from(data['user'] as Map));
-    final token = data['access_token'] as String?;
-    if (token != null) await _storage.saveToken(token);
-    return AuthResult(user: user, token: token);
+    final response = await _api.dio.post('/auth/login', data: {
+      'email': email,
+      'password': password,
+    });
+    return _saveTokenAndLoadUser(response.data);
   }
 
   Future<AuthResult> register(String name, String email, String password) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(const Duration(milliseconds: 450));
-      return AuthResult(user: UserProfile(name: name, email: email), token: 'mock-token');
+    final response = await _api.dio.post('/auth/register', data: {
+      'name': name,
+      'email': email,
+      'password': password,
+      'password_confirmation': password,
+    });
+    return _saveTokenAndLoadUser(response.data);
+  }
+
+  /// GET /auth/me returns the logged-in user.
+  Future<UserProfile> me() async {
+    final response = await _api.dio.get('/auth/me');
+    return UserProfile.fromJson(Map<String, dynamic>.from(response.data as Map));
+  }
+
+  /// Called by the splash screen: logs in again with the saved token.
+  Future<UserProfile?> restoreSession() async {
+    final token = await _storage.readToken();
+    if (token == null || token.isEmpty) return null;
+    try {
+      return await me();
+    } catch (_) {
+      await _storage.clearToken();
+      return null;
     }
-    final response = await _api.dio.post('/api/auth/register', data: {'name': name, 'email': email, 'password': password});
-    final data = Map<String, dynamic>.from(response.data as Map);
-    final user = UserProfile.fromJson(Map<String, dynamic>.from(data['user'] as Map));
-    final token = data['access_token'] as String?;
-    if (token != null) await _storage.saveToken(token);
-    return AuthResult(user: user, token: token);
   }
 
   Future<void> logout() async {
-    if (!AppConfig.useMockData) {
-      try { await _api.dio.post('/api/auth/logout'); } catch (_) {}
-    }
+    try {
+      await _api.dio.post('/auth/logout');
+    } catch (_) {}
     await _storage.clearToken();
+  }
+
+  Future<AuthResult> _saveTokenAndLoadUser(dynamic data) async {
+    final token = (data as Map)['token'] as String?;
+    if (token == null || token.isEmpty) {
+      throw Exception('The server did not return a token');
+    }
+    await _storage.saveToken(token);
+    final user = await me();
+    return AuthResult(user: user, token: token);
   }
 }

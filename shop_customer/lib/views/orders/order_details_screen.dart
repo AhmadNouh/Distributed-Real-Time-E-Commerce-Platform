@@ -17,7 +17,5 @@ class OrderDetailsScreen extends StatelessWidget {
       const SizedBox(height: 8), Text(order.itemsSummary.isEmpty ? 'Order items will be returned by the API.' : order.itemsSummary),
       const Divider(height: 28), Row(children: [const Expanded(child: Text('Total', style: TextStyle(fontWeight: FontWeight.w800))), Text('\$${order.total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800))]),
     ])),
-    const SizedBox(height: 16),
-    const Text('Order status updates will be synced from the backend after API integration.', style: TextStyle(color: Color(0xFF7C8794))),
   ]));
 }

@@ -23,7 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final ok = await context.read<AuthProvider>().register(_name.text.trim(), _email.text.trim(), _password.text);
     if (!mounted) return;
     if (ok) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeShell()), (_) => false);
-    else ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not create account. Please try again.')));
+    else ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.read<AuthProvider>().error ?? 'Could not create account. Please try again.')));
   }
 
   @override

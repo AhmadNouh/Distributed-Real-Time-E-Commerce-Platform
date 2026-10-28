@@ -24,7 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final ok = await context.read<AuthProvider>().login(_email.text.trim(), _password.text);
     if (!mounted) return;
     if (ok) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeShell()), (_) => false);
-    else ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed. Please try again.')));
+    else ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.read<AuthProvider>().error ?? 'Login failed. Please try again.')));
   }
 
   @override
