@@ -34,7 +34,8 @@ class AuthService
             return null;
         }
 
-        $user = auth('api')->user();
+        // JWTAuth::attempt() does not set the user on the guard, so read it from the new token.
+        $user = auth('api')->setToken($token)->user();
 
         return [
             'user' => $user,
