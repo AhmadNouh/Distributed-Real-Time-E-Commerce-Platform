@@ -1,111 +1,94 @@
-# Distributed Real-Time E-Commerce Platform 🛒
+# E-Commerce Modular Monolith (Laravel 12)
 
-منصة تجارة إلكترونية لبناء متجر متكامل مع مراعاة الأمان والأداء وفصل الموديولات (Modular Monolith) بأسلوب يسهل التوسع والتحول الموزع لاحقاً.
-
----
-
-## 📌 أسلوب النظام والإصدارات (Versioning & Structure)
-
-* **المعيار المتبع:** تم بناء الـ API كاملاً تحت الإصدار الأول `/api/v1/`.
-* **توحيد الردود (API Envelope):** جميع الردود ترجع بنفس الهيكلية (سواء نجاح أو خطأ) لتسهيل الربط مع الفرونت إند.
-* **النمط المعماري (Modular Monolith):** الكود مقسم داخل مجلد `app/Modules/` إلى 4 وحدات مستقلة تماماً، وممنوع أي موديول يستدعي جداول موديول آخر بشكل مباشر.
+منصة تجارة إلكترونية مبنية بهيكلية **Modular Monolith** باستخدام **Laravel 12** و **PostgreSQL**، مع نظام مصادقة تعتمد على الـ JWT (`tymon/jwt-auth`) وإدارة الطلبات والإشعارات.
 
 ---
 
-## 📂 أين توجد الملفات والـ Routes؟
+## 📂 هيكلية المشروع (Project Structure)
 
-تتوزع الملفات والمسارات داخل المشروع بالشكل التالي:
+المشروع مقسم إلى موديولات مستقلة (Modules) لتسهيل الصيانة والتطوير:
 
-```text
-app/Modules/
-├── Users/
-│   ├── Controllers/          → معالجة التسجيل والدخول والبروفايل
-│   ├── Models/               → User Model
-│   ├── Routes/api.php        → مسارات Auth (/api/v1/auth/...)
-│   └── Database/Migrations/  → جدول المستخدمين والـ Roles
-│
-├── Products/
-│   ├── Controllers/          → عرض وإضافة المنتجات والتصنيفات
-│   ├── Models/               → Product & Category Models
-│   ├── Routes/api.php        → مسارات المنتجات (/api/v1/products/...)
-│   └── Database/Migrations/  → جداول المنتجات والتصنيفات
-│
-├── Orders/
-│   ├── Controllers/          → إنشاء الطلبات وتغيير الحالات
-│   ├── Models/               → Order & OrderItem Models
-│   ├── Routes/api.php        → مسارات الطلبات (/api/v1/orders/...)
-│   └── Database/Migrations/  → جدول الطلبات وتفاصيلها
-│
-└── Notifications/
-    ├── Services/             → معالجة الإشعارات عبر الـ Queue
-    ├── Routes/api.php        → مسارات الإشعارات (/api/v1/notifications/...)
-    └── Database/Migrations/  → جدول الإشعارات
-
-```
+* **Users**: إدارة المستخدمين، الأدوار (`admin`, `customer`)، والمصادقة.
+* **Products**: إدارة المنتجات، التصنيفات (`Categories`)، والأسعار.
+* **Orders**: إدارة الطلبات، تفاصيل المنتجات داخل الطلب، وتتبع حالات الطلب.
+* **Notifications**: إدارة الإشعارات وتحديدها كمقروءة عبر قاعدة البيانات (Database Notifications).
 
 ---
 
-## 🔗 مسارات الـ API المتاحة (Routes Map)
+## 🛠️ التعديلات والتحسينات الأخيرة
 
-جميع المسارات تبدأ بـ `/api/v1`:
-
-| الخدمة | Route | Method | الصلاحية (Access) |
-| --- | --- | --- | --- |
-| **المصادقة** | `/auth/register` | `POST` | للجميع |
-|  | `/auth/login` | `POST` | للجميع (محددة بـ 5 محاولات/دقيقة) |
-|  | `/auth/me` | `GET` | للمسجلين فقط |
-| **المنتجات** | `/products` | `GET` | للجميع (مع Pagination وتصفية) |
-|  | `/products/{id}` | `GET` | للجميع |
-|  | `/products` | `POST` | الأدمن فقط |
-|  | `/products/categories` | `GET` | للجميع |
-| **الطلبات** | `/orders` | `POST` | زبون مسجل |
-|  | `/orders` & `/orders/{id}` | `GET` | صاحب الطلب فقط |
-|  | `/orders/{id}/status` | `PATCH` | الأدمن فقط |
-| **الإشعارات** | `/notifications` | `GET` | للمستخدم صاحب الإشعار |
+1. **نظام المصادقة (Auth & JWT):** الاعتماد على `tymon/jwt-auth` والـ `api` guard مع التحقق السليم من الـ Bearer Token.
+2. **التحكم بالصلاحيات (RBAC):** تحديث التحقق من صلاحيات الأدمن بالاعتماد على حقل `role === 'admin'`.
+3. **معالجة الاستثناءات (Error Handling):** جعل كافة مسارات الـ API تعيد استجابات `JSON` نظيفة (مثل رموز `404`, `403`, `422`) بدلاً من انهيار التطبيق أو إرجاع صفحات HTML.
+4. **إدارة الإشعارات والطلبات:** تحسين دوال البحث عبر الـ `id` والـ `uuid` لضمان عدم حدوث أخطاء `null pointer` أو `NotFoundHttpException`.
+5. **إضافة التصنيفات (Categories Seeder):** دمج `CategoryDatabaseSeeder` لتعبئة التصنيفات الأساسية للمنتجات.
 
 ---
 
-## 🚀 أوامر التشغيل (How to Run)
+## 🌱 إعداد وتعبئة قاعدة البيانات (Seeders)
 
-شغل **Docker Desktop** أولاً، ثم نفذ الأوامر التالية بالترتيب في الـ Terminal:
+يحتوي كل موديول على الـ Seeder الخاص به، ويتم استدعاؤها جميعاً من الملف الرئيسي `DatabaseSeeder.php` بالترتيب الآتي:
+
+1. `UserDatabaseSeeder` (إنشاء مستخدمي الأدمن والزبائن)
+2. `CategoryDatabaseSeeder` (إنشاء تصنيفات المنتجات)
+3. `ProductDatabaseSeeder` (إضافة المنتجات الأولية وربطها بالتصنيفات)
+4. `OrderDatabaseSeeder` (إنشاء طلبات تجريبية)
+5. `NotificationDatabaseSeeder` (إضافة إشعارات تجريبية)
+
+---
+
+## 🚀 أوامر التشغيل والتثبيت (Docker & Artisan)
+
+### 1. تشغيل الحاويات (Docker)
 
 ```bash
-# 1. نسخ ملف البيئة
-cp .env.example .env
+docker compose up -d
 
-# 2. تشغيل حاويات Docker
-docker compose up -d --build
+```
 
-# 3. تثبيت مكتبات Composer
+### 2. تثبيت الحزم (Composer Install)
+
+```bash
 docker compose exec app composer install
 
-# 4. توليد مفاتيح التشفير والـ JWT
-docker compose exec app php artisan key:generate
-docker compose exec app php artisan jwt:secret --forced
+```
 
-# 5. إنشاء الجداول وتغذيتها بالبيانات التجريبية
-docker compose exec app php artisan migrate --seed
+### 3. إعداد مفتاح التوكن (JWT Secret)
+
+```bash
+docker compose exec app php artisan jwt:secret
+
+```
+
+### 4. تشغيل الهجرة وتعبئة البيانات (Migrations & Seeders)
+
+```bash
+docker compose exec app php artisan migrate:fresh --seed
+
+```
+
+### 5. مسح الكاش (Cache Clear)
+
+```bash
+docker compose exec app php artisan optimize:clear
 
 ```
 
 ---
 
-## 🧪 اختبار التشغيل والحسابات
+## 🔀 أوامر Git الخاصة بالفرع (`backend-ahmad`)
 
-* **رابط الـ API:** `http://localhost:8000/api/v1/products`
-* **صندوق البريد التجريبي (Mailpit):** `http://localhost:8025`
-* **حسابات التجربة الجاهزة (Password: `password123`):**
-* الأدمن: `admin@store.test`
-* المستخدمين: `alice@test.com` | `bob@test.com`
+إذا واجهتك مشاكل في التزامن مع المستودع على جيت هب، استخدم الأوامر التالية:
 
+```bash
+# سحب التعديلات الحديثة ودمجها مع الفرع الحالي
+git pull origin backend-ahmad --rebase
 
+# رفع التعديلات النهائية على الفرع
+git push -u origin backend-ahmad
 
----
-
-## 🌿 قواعد العمل على Git
-
-1. **فرع `main` محمي:** لا يُسمح بالرفع المباشر عليه.
-2. **العمل عبر الفروع:** كل مطور يعمل على فرعه الخاص .
-3. **الدمج (Pull Request):** يتم طلب Pull Request إلى فرع .
+```
 
 ---
+
+*تم التطوير والتجهيز بواسطة فريق العمل - موديول الـ Backend.*
