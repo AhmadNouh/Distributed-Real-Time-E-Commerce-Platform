@@ -11,10 +11,11 @@ class RateLimitLogin
         $key = $request->ip() . ':' . $request->input('email');
         if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($key, $maxAttempts)) {
             return response()->json([
-                'error' => ['message'=>'Too many attempts. Try again later.','code'=>429,'details'=>[]]
+                'error' => ['message'=>'Too Many Attempts','code'=>429,'details'=>[]]
             ], 429);
         }
         \Illuminate\Support\Facades\RateLimiter::hit($key, $decayMinutes * 60);
         return $next($request);
     }
 }
+

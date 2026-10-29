@@ -10,7 +10,6 @@ class EnsureAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // التحقق عبر حراسة الـ api للتأكد من جلب الأدمن بدقة
         $user = auth('api')->user();
 
         if ($user && $user->role === 'admin') {
