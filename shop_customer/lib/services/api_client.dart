@@ -18,6 +18,15 @@ class ApiClient {
         }
         handler.next(options);
       },
+      onResponse: (response, handler) {
+        // Newer backend routes wrap the payload: {"success": true, "data": ..., "message": ...}.
+        // Unwrap it so the services see the payload whichever shape the route uses.
+        final body = response.data;
+        if (body is Map && body.containsKey('success') && body.containsKey('data')) {
+          response.data = body['data'];
+        }
+        handler.next(response);
+      },
       onError: (error, handler) async {
         if (error.response?.statusCode == 401) await _tokenStorage.clearToken();
         handler.next(error);
@@ -38,9 +47,22 @@ class ApiClient {
     return const [];
   }
 
+  /// Seconds to wait after a 429 response (Retry-After header), 60 when the header is missing
+  /// (browsers hide it unless the server exposes it through CORS).
+  static int retryAfterSeconds(Object error) {
+    if (error is DioException) {
+      final seconds = int.tryParse(error.response?.headers.value('retry-after') ?? '');
+      if (seconds != null && seconds > 0) return seconds > 3600 ? 3600 : seconds;
+    }
+    return 60;
+  }
+
   /// Turns any error into text you can show in a SnackBar.
   static String errorMessage(Object error) {
     if (error is DioException) {
+      if (error.response?.statusCode == 429) {
+        return 'Too many attempts. Please try again in ${retryAfterSeconds(error)} seconds.';
+      }
       if (error.type == DioExceptionType.connectionTimeout ||
           error.type == DioExceptionType.connectionError) {
         return 'Cannot reach the server. Is the backend running?';
