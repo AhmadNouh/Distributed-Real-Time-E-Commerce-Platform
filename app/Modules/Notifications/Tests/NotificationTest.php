@@ -35,10 +35,15 @@ class NotificationTest extends TestCase
             'notifiable_type' => User::class,
         ]);
 
-        $response = $this->actingAs($user, 'sanctum')
+        $response = $this->actingAs($user, 'api')
                          ->getJson('/api/v1/notifications');
 
         $response->assertStatus(200)
-                 ->assertJsonStructure([[ 'id', 'type', 'data', 'read_at' ]]);
+                 ->assertJsonStructure([
+                     'success',
+                     'data' => [
+                         ['id', 'type', 'data', 'read_at'],
+                     ],
+                 ]);
     }
 }

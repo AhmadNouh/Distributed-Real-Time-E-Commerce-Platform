@@ -1,10 +1,10 @@
 <?php
 
-namespace Modules\User\Tests;
+namespace App\Modules\Users\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use Modules\User\Models\User;
+use App\Modules\Users\Models\User;
 
 class UserAuthTest extends TestCase
 {

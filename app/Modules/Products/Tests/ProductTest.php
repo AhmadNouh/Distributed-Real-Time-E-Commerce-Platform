@@ -38,7 +38,7 @@ class ProductTest extends TestCase
 
         $category = Category::create(['name' => 'Phones']);
 
-        $response = $this->actingAs($admin, 'sanctum')
+        $response = $this->actingAs($admin, 'api')
                          ->postJson('/api/v1/products', [
                              'name' => 'iPhone 15',
                              'price' => 999.99,

@@ -32,7 +32,7 @@ class OrderTest extends TestCase
         ]);
 
     
-        $response = $this->actingAs($customer, 'sanctum')
+        $response = $this->actingAs($customer, 'api')
                          ->postJson('/api/v1/orders', [
                              'items' => [
                                  [
@@ -44,7 +44,7 @@ class OrderTest extends TestCase
 
         $response->assertStatus(201)
                  ->assertJsonPath('success', true) 
-                 ->assertJsonPath('data.total', 200.00);
+                 ->assertJsonPath('data.total', 200);
     }
 
     public function test_admin_can_update_order_status()
@@ -72,7 +72,7 @@ class OrderTest extends TestCase
         ]);
 
     
-        $response = $this->actingAs($admin, 'sanctum')
+        $response = $this->actingAs($admin, 'api')
                          ->patchJson("/api/v1/orders/{$order->id}/status", [
                              'status' => 'confirmed'
                          ]);

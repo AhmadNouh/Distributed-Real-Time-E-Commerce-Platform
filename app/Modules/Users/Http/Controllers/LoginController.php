@@ -56,7 +56,7 @@ class LoginController extends BaseApiController
     public function me(Request $request)
     {
         return $this->successDataResponse(
-            UserResource::make($request->user()),
+            UserResource::make(auth('api')->user() ?? $request->user()),
             'User data'
         );
     }

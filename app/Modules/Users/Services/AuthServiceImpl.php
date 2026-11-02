@@ -38,8 +38,11 @@ class AuthServiceImpl implements AuthService
             return null;
         }
 
-        /** @var User $user */
-        $user = auth('api')->user();
+        $user = $this->users->findByEmail($credentials['email']);
+
+        if (! $user) {
+            return null;
+        }
 
         return [
             'user' => $user,
