@@ -2,131 +2,77 @@
 
 namespace App\Modules\Orders\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseApiController;
+use App\Modules\Orders\Contracts\OrderService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
-use App\Modules\Orders\Models\Order;
-use App\Modules\Orders\Events\OrderCreated;
-use App\Modules\Orders\Events\OrderStatusChanged;
-use App\Modules\Products\Models\Product;
+use InvalidArgumentException;
+use Symfony\Component\HttpFoundation\Response;
 
-class OrderController extends Controller
+class OrderController extends BaseApiController
 {
-    public function index()
+    public function __construct(
+        private readonly OrderService $orders
+    ) {}
+
+    public function index(Request $request)
     {
-        $user = Auth::user();
-        $query = $user->is_admin ? Order::query() : Order::where('user_id', $user->id);
-        return response()->json($query->with('items')->paginate(15));
+        $orders = $this->orders->paginateFor(
+            $request->user(),
+            $request->integer('per_page', 15)
+        );
+
+        return $this->successDataResponse($orders, 'Orders retrieved successfully');
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $order = Order::with('items')->find($id);
-        if (!$order) {
-            return response()->json(['error' => ['message' => 'Not found', 'code' => 404, 'details' => []]], 404);
+        $order = $this->orders->find((int) $id);
+
+        if (! $order) {
+            return $this->notFoundResponse('Order not found');
         }
-        
-        $user = Auth::user();
-        if ($order->user_id !== $user->id && !$user->is_admin) {
-            return response()->json(['error' => ['message' => 'Forbidden', 'code' => 403, 'details' => []]], 403);
+
+        $user = $request->user();
+
+        if ($order->user_id !== $user->id && ! $user->isAdmin()) {
+            return $this->forbiddenResponse('Forbidden');
         }
-        
-        return $order;
+
+        return $this->successDataResponse($order, 'Order details');
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'items' => 'required|array',
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|integer|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1'
+            'items.*.quantity' => 'required|integer|min:1',
+            'uuid' => 'nullable|string|max:255',
         ]);
 
-        $user = Auth::user();
-        $items = $request->input('items');
+        $order = $this->orders->createFor(
+            $request->user(),
+            $validated['items'],
+            $validated['uuid'] ?? null
+        );
 
-        return DB::transaction(function () use ($user, $items, $request) {
-            $order = Order::create([
-                'user_id' => $user->id,
-                'status' => 'pending',
-                'total' => 0,
-                'uuid' => $request->get('uuid', Str::uuid()),
-            ]);
-
-            $total = 0;
-            foreach ($items as $it) {
-                $p = Product::find($it['product_id']);
-                $qty = $it['quantity'];
-                $price = $p ? $p->price : 0;
-
-                $order->items()->create([
-                    'product_id' => $it['product_id'],
-                    'quantity' => $qty,
-                    'price' => $price
-                ]);
-
-                $total += $price * $qty;
-            }
-
-            $order->update(['total' => $total]);
-
-            event(new OrderCreated($order));
-
-            return response()->json($order->load('items'), 201);
-        });
+        return $this->createdResponse($order, 'Order created successfully');
     }
-    
-    
+
     public function updateStatus(Request $request, $id)
     {
-        $order = Order::find($id);
-        
-        if (!$order) {
-            return response()->json([
-                'error' => [
-                    'message' => 'Order not found',
-                    'code' => 404,
-                    'details' => []
-                ]
-            ], 404);
-        }
-
-        $user = Auth::user();
-        if ($user->role !== 'admin') {
-            return response()->json([
-                'error' => [
-                    'message' => 'Forbidden',
-                    'code' => 403,
-                    'details' => []
-                ]
-            ], 403);
-        }
-
-        $request->validate([
-            'status' => 'required|in:pending,confirmed,shipped,delivered,cancelled'
+        $validated = $request->validate([
+            'status' => 'required|in:pending,confirmed,shipped,delivered,cancelled',
         ]);
-        
-        $newStatus = $request->input('status');
-        $valid = [
-            'pending' => ['confirmed', 'cancelled'],
-            'confirmed' => ['shipped', 'cancelled'],
-            'shipped' => ['delivered']
-        ];
 
-        if (isset($valid[$order->status]) && !in_array($newStatus, $valid[$order->status])) {
-            return response()->json([
-                'error' => [
-                    'message' => 'Invalid transition',
-                    'code' => 422,
-                    'details' => []
-                ]
-            ], 422);
+        try {
+            $order = $this->orders->changeStatus((int) $id, $validated['status']);
+        } catch (ModelNotFoundException) {
+            return $this->notFoundResponse('Order not found');
+        } catch (InvalidArgumentException $e) {
+            return $this->errorResponse($e->getMessage(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-
-        $order->update(['status' => $newStatus]);
-        event(new OrderStatusChanged($order));
 
         return response()->json($order);
     }

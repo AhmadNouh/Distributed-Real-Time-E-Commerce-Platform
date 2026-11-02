@@ -2,15 +2,21 @@
 
 namespace App\Modules\Users\Services;
 
-use App\Modules\Users\Models\User as ModelsUser;
+use App\Modules\Users\Contracts\AuthService;
+use App\Modules\Users\Contracts\UserService;
+use App\Modules\Users\Models\User;
 use Illuminate\Support\Facades\Hash;
-use Tymon\JWTAuth\Facades\JWTAuth; 
+use Tymon\JWTAuth\Facades\JWTAuth;
 
-class AuthService
+class AuthServiceImpl implements AuthService
 {
+    public function __construct(
+        private readonly UserService $users
+    ) {}
+
     public function register(array $data): array
     {
-        $user = ModelsUser::create([
+        $user = $this->users->create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
@@ -18,7 +24,6 @@ class AuthService
             'role' => $data['role'] ?? 'customer',
         ]);
 
-        
         $token = JWTAuth::fromUser($user);
 
         return [
@@ -29,11 +34,11 @@ class AuthService
 
     public function attemptLogin(array $credentials): ?array
     {
-    
         if (! $token = JWTAuth::attempt($credentials)) {
             return null;
         }
 
+        /** @var User $user */
         $user = auth('api')->user();
 
         return [
@@ -42,7 +47,7 @@ class AuthService
         ];
     }
 
-    public function logout($user): void
+    public function logout(User $user): void
     {
         JWTAuth::invalidate(JWTAuth::getToken());
     }

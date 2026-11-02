@@ -4,10 +4,9 @@ namespace App\Modules\Users\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\BaseApiController;
+use App\Modules\Users\Contracts\AuthService;
 use App\Modules\Users\Requests\Auth\LoginRequest;
-use Modules\User\Http\Requests\Auth\RegisterRequest;
 use App\Modules\Users\Resources\UserResource;
-use App\Modules\Users\Services\AuthService; 
 
 
 class LoginController extends BaseApiController

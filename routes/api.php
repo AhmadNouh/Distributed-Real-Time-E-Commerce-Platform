@@ -1,6 +1,5 @@
 <?php
 use Illuminate\Support\Facades\Route;
-use Modules\User\Http\Controllers\LoginController;
 
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {

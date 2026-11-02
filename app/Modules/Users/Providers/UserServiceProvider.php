@@ -1,17 +1,18 @@
 <?php
 
-namespace App\Modules\User\Providers;
+namespace App\Modules\Users\Providers;
 
-use Illuminate\Support\Facades\Route;
+use App\Modules\Users\Contracts\AuthService;
+use App\Modules\Users\Contracts\UserService;
+use App\Modules\Users\Services\AuthServiceImpl;
+use App\Modules\Users\Services\UserServiceImpl;
 use Illuminate\Support\ServiceProvider;
 
 class UserServiceProvider extends ServiceProvider
 {
-    public function boot(): void
+    public function register(): void
     {
-        Route::prefix('api/v1')
-            ->middleware('api')
-            ->group(__DIR__ . '/../Routes/api.php');
-
+        $this->app->bind(AuthService::class, AuthServiceImpl::class);
+        $this->app->bind(UserService::class, UserServiceImpl::class);
     }
 }

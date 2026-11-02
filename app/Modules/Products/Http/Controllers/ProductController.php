@@ -3,32 +3,30 @@
 namespace App\Modules\Products\Http\Controllers;
 
 use App\Http\Controllers\Api\BaseApiController;
-use Illuminate\Http\Request;
+use App\Modules\Products\Contracts\ProductService;
 use App\Modules\Products\Http\Requests\StoreProductRequest;
 use App\Modules\Products\Http\Resources\ProductResource;
-use App\Modules\Products\Models\Product;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
 
 class ProductController extends BaseApiController
 {
+    public function __construct(
+        private readonly ProductService $products
+    ) {}
+
     public function index(Request $request)
     {
-        $query = Product::query();
+        $products = $this->products->paginate(
+            $request->only(['category_id', 'search']),
+            $request->integer('per_page', 15)
+        );
 
-        if ($request->has('category_id')) {
-            $query->where('category_id', $request->category_id);
-        }
-
-        if ($request->has('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
-        }
-
-        return $this->successDataResponse($query->paginate(15), 'Products retrieved successfully');
+        return $this->successDataResponse($products, 'Products retrieved successfully');
     }
 
     public function show($id)
     {
-        $product = Product::find($id);
+        $product = $this->products->find((int) $id);
 
         if (! $product) {
             return $this->notFoundResponse('Product not found');
@@ -45,37 +43,33 @@ class ProductController extends BaseApiController
             $data['image'] = $request->file('image')->store('products', 'public');
         }
 
-        $product = Product::create($data);
+        $product = $this->products->create($data);
 
         return $this->createdResponse(ProductResource::make($product), 'Product created successfully');
     }
 
     public function update(Request $request, $id)
     {
-        $product = Product::find($id);
+        $data = $request->all();
+
+        if ($request->hasFile('image')) {
+            $data['image'] = $request->file('image')->store('products', 'public');
+        }
+
+        $product = $this->products->update((int) $id, $data);
 
         if (! $product) {
             return $this->notFoundResponse('Product not found');
         }
-
-        $product->update($request->all());
 
         return $this->successDataResponse($product, 'Product updated successfully');
     }
 
     public function destroy($id)
     {
-        $product = Product::find($id);
-
-        if (! $product) {
+        if (! $this->products->delete((int) $id)) {
             return $this->notFoundResponse('Product not found');
         }
-
-        if ($product->image) {
-            Storage::disk('public')->delete($product->image);
-        }
-
-        $product->delete();
 
         return $this->successResponse('Product deleted successfully');
     }
