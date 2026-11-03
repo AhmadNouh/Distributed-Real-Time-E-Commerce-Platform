@@ -127,7 +127,10 @@ Laravel (app)  ──gRPC 2s deadline──▶  warehouse (Go, :50051)  ──�
 | عرض الكمية في المنتج | `app/Modules/Products/Http/Controllers/ProductController.php` |
 | اختبارات فشل المخزون | `app/Modules/Orders/Tests/Feature/OrderInventoryTest.php` |
 | اختبارات عرض الكمية | `app/Modules/Products/Tests/ProductStockTest.php` |
+| اختبارات وحدة (ReservationResult / Fake / gRPC mapping) | `tests/Unit/` |
+| اختبار وحدة لمنطق المستودع في Go | `services/warehouse/internal/warehouse/store_test.go` |
 | اختبار تكامل gRPC حقيقي | `tests/Integration/WarehouseGrpcTest.php` |
+| كولكشن Postman (اختبارات على كل طلب) | `docs/postman/Distributed-Real-Time-E-Commerce-Platform-v2.postman_collection.json` |
 | إثبات الـ race | `scripts/proof/race-condition.ps1` |
 | إثبات سقوط الخدمة | `scripts/proof/warehouse-down.ps1` |
 | توليد stubs الـ PHP | `docker/php/gen-stubs.sh` |
@@ -204,6 +207,23 @@ powershell -ExecutionPolicy Bypass -File scripts/proof/warehouse-down.ps1
 * صفحة المنتج تبقى تعمل: `available_quantity = null` و`stock_status = "unavailable"`.
 * إنشاء الطلب يرجع **503** خلال ~٢ ثانية مع رسالة واضحة.
 * السكربت يعيد تشغيل الخدمة ويتأكد من رجوع الصفحة لحالتها الطبيعية.
+
+### اختبارات Postman (كل طلب عنده Tests)
+
+الملف: `docs/postman/Distributed-Real-Time-E-Commerce-Platform-v2.postman_collection.json`
+(نسخة مطابقة له في جذر المشروع: `Distributed-Real-Time-E-Commerce-Platform-v2.postman_collection.json`).
+
+* ٥ مجلدات / ٢٥ طلب، **وكل طلب فيه Test Script** (Auth, Products, Orders, Notifications, Warehouse gRPC).
+* تشغيل آلي كامل:
+
+```powershell
+npx -y newman run docs/postman/Distributed-Real-Time-E-Commerce-Platform-v2.postman_collection.json
+```
+
+النتيجة المتوقعة: `25 requests / 53 assertions / 0 failures` — البندان اليدويان (٤ و٥) مُتخطّيان افتراضياً حتى لا تحتاج لإيقاف الحاويات.
+
+* **٤. Warehouse Down → 503:** `docker compose stop warehouse` ثم اجعل `run_warehouse_down = true` وأرسل الطلب (ثم `docker compose start warehouse`).
+* **٥. After Race: Last Unit Is Gone:** نفّذ `scripts/proof/race-condition.ps1` ثم اجعل `run_race = true` وأرسل الطلب.
 
 ### ملاحظات تشغيلية
 

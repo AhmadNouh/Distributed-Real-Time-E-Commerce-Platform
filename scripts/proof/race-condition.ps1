@@ -44,6 +44,7 @@ if (-not $token) { throw "Login failed: no token in the response." }
 
 Write-Host "==> 3/5 firing $ConcurrentRequests order requests at the same time" -ForegroundColor Cyan
 
+Add-Type -AssemblyName System.Net.Http
 $http = [System.Net.Http.HttpClient]::new()
 $http.Timeout = [TimeSpan]::FromSeconds(30)
 
@@ -98,11 +99,11 @@ Write-Host ""
 Write-Host "==> 5/5 final warehouse stock" -ForegroundColor Cyan
 $stockAfter = (docker compose exec -T warehouse-db psql -U warehouse -d warehouse -t -A -c `
         "SELECT quantity - reserved FROM stock WHERE product_id = $ProductId;").Trim()
-Assert-Equal $stockAfter "0" "no unit is left — the last one was sold exactly once"
+Assert-Equal $stockAfter "0" "no unit is left - the last one was sold exactly once"
 
-$orders = (docker compose exec -T app php artisan tinker --execute `
-        "echo \App\Modules\Orders\Models\Order::where('uuid', 'like', 'race-%')->count();" 2>$null)
-Write-Host "  order rows stored with a race-* uuid: $(($orders | Out-String).Trim())"
+$orders = (docker compose exec -T postgres psql -U postgres -d ecommerce -t -A -c "SELECT count(*) FROM orders WHERE uuid LIKE 'race-%';").Trim()
+Write-Host "  order rows stored with a race-* uuid: $orders"
 
 Write-Host ""
 Write-Host "RACE CONDITION PROOF PASSED: 10 concurrent buyers, 1 unit, 1 success." -ForegroundColor Green
+exit 0

@@ -29,6 +29,13 @@ services:
       INVENTORY_DRIVER: grpc
       WAREHOUSE_ADDR: warehouse:50051
       WAREHOUSE_TIMEOUT: 2
+      # Without opcache every request recompiles the whole framework from the
+      # bind mount (~2.4s per request on Docker Desktop). Timestamps are still
+      # checked, but only once a minute (freq=60), so code edits are picked up
+      # without recompiling the framework on every single request.
+      PHP_OPCACHE_ENABLE: "true"
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+      PHP_OPCACHE_REVALIDATE_FREQ: "60"
   queue-worker:
     build:
       context: .
@@ -50,6 +57,9 @@ services:
       INVENTORY_DRIVER: grpc
       WAREHOUSE_ADDR: warehouse:50051
       WAREHOUSE_TIMEOUT: 2
+      PHP_OPCACHE_ENABLE: "true"
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+      PHP_OPCACHE_REVALIDATE_FREQ: "60"
   postgres:
     image: postgres:16-alpine
     environment:

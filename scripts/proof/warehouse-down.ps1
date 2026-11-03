@@ -113,3 +113,4 @@ Write-Host "  data.stock_status       = $($product.data.stock_status)"
 Assert-Equal $product.data.stock_status "available" "the product page is healthy again"
 Write-Host ""
 Write-Host "WAREHOUSE-DOWN PROOF PASSED: the API degrades gracefully and recovers." -ForegroundColor Green
+exit 0
