@@ -28,7 +28,7 @@ Write-Host "==> logging in as customer@example.com" -ForegroundColor Cyan
 $loginBody = @{ email = "customer@example.com"; password = "password" } | ConvertTo-Json
 $login = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/auth/login" `
     -ContentType "application/json" -Headers @{ Accept = "application/json" } -Body $loginBody
-$token = $login.token
+$token = $login.data.token
 if (-not $token) { throw "Login failed: no token in the response." }
 
 $auth = @{ Accept = "application/json"; Authorization = "Bearer $token" }

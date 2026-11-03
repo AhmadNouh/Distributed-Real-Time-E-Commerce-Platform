@@ -39,7 +39,7 @@ $loginBody = @{ email = "customer@example.com"; password = "password" } | Conver
 $login = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/auth/login" `
     -ContentType "application/json" -Headers @{ Accept = "application/json" } -Body $loginBody
 
-$token = $login.token
+$token = $login.data.token
 if (-not $token) { throw "Login failed: no token in the response." }
 
 Write-Host "==> 3/5 firing $ConcurrentRequests order requests at the same time" -ForegroundColor Cyan
