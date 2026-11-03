@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
+	"flag"
 	"log/slog"
 	"net"
 	"os"
@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -27,10 +28,18 @@ func env(key, fallback string) string {
 }
 
 func main() {
+	healthcheck := flag.Bool("healthcheck", false, "probe the local gRPC health service and exit")
+	flag.Parse()
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	dsn := env("DB_DSN", "postgres://warehouse:warehouse@warehouse-db:5432/warehouse?sslmode=disable")
 	addr := ":" + env("GRPC_PORT", "50051")
+
+	if *healthcheck {
+		os.Exit(runHealthcheck())
+	}
+
+	dsn := env("DB_DSN", "postgres://warehouse:warehouse@warehouse-db:5432/warehouse?sslmode=disable")
 
 	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancelStartup()
@@ -89,8 +98,29 @@ func main() {
 		logger.Warn("graceful stop timed out, forcing")
 		server.Stop()
 	}
+}
 
-	if errors.Is(err, context.DeadlineExceeded) {
-		logger.Warn("startup deadline exceeded")
+// runHealthcheck probes the local health service. The runtime image is built
+// `FROM scratch`, so there is no shell, curl or nc available for a compose
+// healthcheck; the binary probes itself instead.
+func runHealthcheck() int {
+	target := "127.0.0.1:" + env("GRPC_PORT", "50051")
+
+	conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return 1
 	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{
+		Service: "warehouse.v1.WarehouseService",
+	})
+	if err != nil || response.GetStatus() != healthpb.HealthCheckResponse_SERVING {
+		return 1
+	}
+
+	return 0
 }
