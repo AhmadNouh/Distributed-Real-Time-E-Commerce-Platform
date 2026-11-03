@@ -91,4 +91,144 @@ git push -u origin backend-ahmad
 
 ---
 
+## 🏭 المتطلب الثاني: التواصل بين الخدمات (Warehouse gRPC Service)
+
+### الفكرة
+
+المخزون (stock) لم يعد داخل قاعدة بيانات Laravel. أصبح هناك **خدمة مستقلة بلغة Go** تتكلم **gRPC** وتملك **قاعدة بيانات PostgreSQL خاصة بها**:
+
+```
+Laravel (app)  ──gRPC 2s deadline──▶  warehouse (Go, :50051)  ──▶  warehouse-db (PostgreSQL, host :5433)
+   │
+   └── orders / products  →  ecommerce (PostgreSQL, host :5432)
+```
+
+* **العقد الوحيد بين الطرفين:** `proto/warehouse/v1/warehouse.proto` ويحتوي **٣ عمليات فقط**:
+  1. `GetStock(product_id)` → الكمية المتاحة.
+  2. `Reserve(order_uuid, items[])` → حجز كل عناصر الطلب **بنداء واحد** (إما الكل أو لا شيء).
+  3. `Release(order_uuid)` → إرجاع الحجز (للتعويض أو عند الإلغاء).
+* Laravel **لا يقرأ** جداول المخزون مباشرة أبداً.
+
+### المجلدات والأماكن
+
+| ماذا | أين |
+|---|---|
+| العقد (proto) | `proto/warehouse/v1/warehouse.proto` |
+| خدمة Go | `services/warehouse/cmd/server/main.go` |
+| منطق المخزون (الأقفال + idempotency) | `services/warehouse/internal/warehouse/store.go` |
+| طبقة gRPC | `services/warehouse/internal/warehouse/server.go` |
+| سكيما قاعدة المستودع + seed | `services/warehouse/internal/warehouse/schema.sql` |
+| منفذ المخزون في Laravel | `app/Shared/Contracts/InventoryClient.php` |
+| تطبيق gRPC في Laravel | `app/Shared/Inventory/GrpcInventoryClient.php` |
+| تطبيق fake للاختبارات | `app/Shared/Inventory/FakeInventoryClient.php` |
+| ربط التنفيذ بالإعدادات | `app/Providers/InventoryServiceProvider.php` |
+| استثناءات المخزون | `app/Shared/Exceptions/` |
+| منطق إنشاء الطلب | `app/Modules/Orders/Services/OrderServiceImpl.php` |
+| عرض الكمية في المنتج | `app/Modules/Products/Http/Controllers/ProductController.php` |
+| اختبارات فشل المخزون | `app/Modules/Orders/Tests/Feature/OrderInventoryTest.php` |
+| اختبارات عرض الكمية | `app/Modules/Products/Tests/ProductStockTest.php` |
+| اختبار تكامل gRPC حقيقي | `tests/Integration/WarehouseGrpcTest.php` |
+| إثبات الـ race | `scripts/proof/race-condition.ps1` |
+| إثبات سقوط الخدمة | `scripts/proof/warehouse-down.ps1` |
+| توليد stubs الـ PHP | `docker/php/gen-stubs.sh` |
+| تثبيت إضافة grpc | `docker/php/install-extensions.sh` |
+
+### التشغيل
+
+```bash
+# 1. بناء وتشغيل كل شيء (بما فيها warehouse + warehouse-db)
+docker compose up -d --build
+
+# 2. تأكد أن خدمة المستودع سليمة (gRPC Health + reflection مفعّلان)
+docker compose ps warehouse
+docker compose logs -f warehouse
+
+# 3. اختبارات المشروع (تستخدم fake ولا تحتاج الخدمة)
+docker compose exec -T app php artisan test
+
+# 4. اختبارات التكامل الحقيقية ضد خدمة Go
+docker compose exec -T -e RUN_GRPC_TESTS=1 app php artisan test --testsuite=Integration
+```
+
+### متغيّرات البيئة
+
+| المتغيّر | القيمة الافتراضية | المعنى |
+|---|---|---|
+| `INVENTORY_DRIVER` | `fake` | `grpc` لتشغيل الخدمة الحقيقية |
+| `WAREHOUSE_ADDR` | `warehouse:50051` | عنوان خدمة Go |
+| `WAREHOUSE_TIMEOUT` | `2` | مهلة كل RPC بالثواني (Deadline) |
+
+### كيف يعمل إنشاء الطلب (خطوة بخطوة)
+
+1. `OrderController::store()` يتحقق من صحة الطلب (`items[]`, `quantity >= 1`).
+2. `OrderServiceImpl::createFor()` يجيب المنتجات من موديول Products (قراءة فقط).
+3. يبني قائمة الحجز ويستدعي **`reserve($orderUuid, $items)` مرة واحدة** لكل الطلب.
+4. إذا رفض المستودع:
+   * نقص مخزون → استثناء `InsufficientStockException` → **HTTP 409** مع أسماء المنتجات والكميات.
+   * منتج غير معروف للمستودع → نفس 409 مع رسالة مختلفة.
+   * الخدمة واقفة/انتهت المهلة → `WarehouseUnavailableException` / `WarehouseTimeoutException` → **HTTP 503** بسرعة (بدون انتظار لا نهائي).
+5. إذا وافق المستودع: تُكتب الطلبات داخل `DB::transaction`.
+6. إذا فشل الحفظ بعد الموافقة: `releaseQuietly($orderUuid)` يرجّع الكميات للمستودع (تعويض)، ويُسجَّل الخطأ في اللوج.
+7. عند تغيير حالة الطلب إلى `cancelled`: تُحرَّر الكميات تلقائياً.
+
+### لماذا لا يمكن بيع آخر قطعة مرتين؟
+
+* `Reserve` يفتح معاملة، ويأخذ `pg_advisory_xact_lock(hashtext(order_uuid))` لمنع تكرار نفس الطلب (idempotency).
+* ثم `SELECT ... FOR UPDATE` مع `ORDER BY product_id` لقفل صفوف المنتجات بترتيب ثابت (يمنع الـ deadlocks).
+* بعد انتظار القفل، PostgreSQL يعيد قراءة أحدث نسخة من الصف، فيرى `reserved` الذي زاده الطلب الفائز.
+* أي طلب آخر يجد `available < quantity` فيُرجع `INSUFFICIENT_STOCK` بدون أي كتابة.
+* يوجد `CHECK (reserved <= quantity)` كحزام أمان إضافي على مستوى قاعدة البيانات.
+
+### إثبات الـ Race Condition
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/proof/race-condition.ps1
+```
+
+الناتج المتوقع:
+
+```
+OK  warehouse reports exactly 1 available unit before the race
+OK  exactly ONE order was created
+OK  the other 9 requests were rejected with 409
+OK  no unit is left - the last one was sold exactly once
+RACE CONDITION PROOF PASSED: 10 concurrent buyers, 1 unit, 1 success.
+```
+
+### إثبات سقوط خدمة المستودع
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/proof/warehouse-down.ps1
+```
+
+* صفحة المنتج تبقى تعمل: `available_quantity = null` و`stock_status = "unavailable"`.
+* إنشاء الطلب يرجع **503** خلال ~٢ ثانية مع رسالة واضحة.
+* السكربت يعيد تشغيل الخدمة ويتأكد من رجوع الصفحة لحالتها الطبيعية.
+
+### ملاحظات تشغيلية
+
+* أول بناء لصورة `app` ياخد وقتاً لأن إضافة `grpc` تُترجم من المصدر. سكربت `docker/php/install-extensions.sh` يحدّد `make -j2` لتجنّب نفاد الذاكرة على Docker بذاكرة ٤ GB.
+* لإعادة توليد ملفات PHP من الـ proto بعد أي تعديل:
+
+```bash
+docker compose exec -T -u root app sh /var/www/html/docker/php/gen-stubs.sh
+```
+
+* لإعادة توليد ملفات Go:
+
+```bash
+docker run --rm -v "$($PWD.Path):/w" -w /w golang:1.23-bookworm \
+  bash /w/services/warehouse/scripts/gen-proto.sh
+```
+
+* لفحص كل ملفات PHP نحوياً:
+
+```bash
+docker compose exec -T app sh /var/www/html/scripts/lint.sh
+```
+
+---
+
 *تم التطوير والتجهيز بواسطة فريق العمل - موديول الـ Backend.*
+
+

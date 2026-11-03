@@ -4,6 +4,8 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Api\BaseApiController;
 use App\Modules\Orders\Contracts\OrderService;
+use App\Shared\Exceptions\InsufficientStockException;
+use App\Shared\Exceptions\WarehouseUnavailableException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -51,11 +53,27 @@ class OrderController extends BaseApiController
             'uuid' => 'nullable|string|max:255',
         ]);
 
-        $order = $this->orders->createFor(
-            $request->user(),
-            $validated['items'],
-            $validated['uuid'] ?? null
-        );
+        try {
+            $order = $this->orders->createFor(
+                $request->user(),
+                $validated['items'],
+                $validated['uuid'] ?? null
+            );
+        } catch (InsufficientStockException $e) {
+            // Warehouse said no: nothing was written, tell the user why.
+            return $this->errorResponse(
+                $e->getMessage(),
+                Response::HTTP_CONFLICT,
+                ['stock' => $e->shortages]
+            );
+        } catch (WarehouseUnavailableException $e) {
+            // Warehouse stopped or exceeded the deadline: answer fast and clear.
+            return $this->errorResponse(
+                $e->getMessage(),
+                Response::HTTP_SERVICE_UNAVAILABLE,
+                ['warehouse' => [$e->getMessage()]]
+            );
+        }
 
         return $this->createdResponse($order, 'Order created successfully');
     }
