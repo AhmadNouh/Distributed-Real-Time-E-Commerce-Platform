@@ -11,7 +11,8 @@ class AuthProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
-  /// Mirrors the server rule on POST /auth/login: 5 attempts per email per minute.
+  /// Mirrors the server rule on POST /auth/login: 5 attempts per minute (the server counts per
+  /// IP, the app counts per email and also follows the server 429 + Retry-After).
   static const int maxLoginAttempts = 5;
   static const Duration loginWindow = Duration(seconds: 60);
 
