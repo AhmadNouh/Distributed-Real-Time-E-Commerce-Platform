@@ -17,13 +17,19 @@ class CatalogService {
     String search = '',
     Map<int, String> categoryNames = const {},
   }) async {
-    final response = await _api.dio.get('/products', queryParameters: {
+    final rows = await _api.getAll('/products', query: {
       if (categoryId != null) 'category_id': categoryId,
       if (search.trim().isNotEmpty) 'search': search.trim(),
-      'page': 1,
     });
-    return ApiClient.listFrom(response.data)
+    return rows
         .map((e) => Product.fromJson(Map<String, dynamic>.from(e as Map), categoryNames: categoryNames))
         .toList();
+  }
+
+  /// GET /products/{id}: same fields as the list plus the warehouse stock
+  /// (available_quantity, stock_status).
+  Future<Product> getProduct(String id, {Map<int, String> categoryNames = const {}}) async {
+    final response = await _api.dio.get('/products/$id');
+    return Product.fromJson(Map<String, dynamic>.from(response.data as Map), categoryNames: categoryNames);
   }
 }

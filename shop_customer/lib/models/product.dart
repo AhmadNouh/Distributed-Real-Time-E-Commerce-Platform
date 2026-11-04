@@ -10,7 +10,7 @@ class Product {
     required this.imageUrl,
     this.categoryId,
     this.badge,
-    this.stock = 20,
+    this.availableQuantity,
   });
   final String id;
   final String name;
@@ -20,7 +20,11 @@ class Product {
   final double price;
   final String imageUrl;
   final String? badge;
-  final int stock;
+
+  /// Units in the warehouse. Only GET /products/{id} sends it (as "available_quantity");
+  /// the list does not, and it is null too when the warehouse is down. null means "unknown".
+  final int? availableQuantity;
+  bool get isOutOfStock => availableQuantity != null && availableQuantity! <= 0;
 
   /// [categoryNames] maps category_id -> name, because the API sends only the id.
   factory Product.fromJson(Map<String, dynamic> json, {Map<int, String> categoryNames = const {}}) {
@@ -36,7 +40,7 @@ class Product {
       price: double.tryParse('${json['price'] ?? 0}') ?? 0,
       imageUrl: _imageUrl(json['image_url'] ?? json['image']),
       badge: json['badge'] as String?,
-      stock: int.tryParse('${json['stock'] ?? 20}') ?? 20,
+      availableQuantity: int.tryParse('${json['available_quantity'] ?? json['stock'] ?? ''}'),
     );
   }
 
@@ -50,6 +54,6 @@ class Product {
   Map<String, dynamic> toJson() => {
         'id': id, 'name': name, 'description': description, 'category': category,
         'category_id': categoryId, 'price': price, 'image_url': imageUrl,
-        'badge': badge, 'stock': stock,
+        'badge': badge, 'available_quantity': availableQuantity,
       };
 }

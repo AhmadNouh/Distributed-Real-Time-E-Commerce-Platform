@@ -52,6 +52,15 @@ class CatalogProvider extends ChangeNotifier {
     }
   }
 
+  /// Fresh copy of [product] with the warehouse stock; keeps the list copy if the call fails.
+  Future<Product> details(Product product) async {
+    try {
+      return await _service.getProduct(product.id, categoryNames: _categoryNames);
+    } catch (_) {
+      return product;
+    }
+  }
+
   Future<void> setCategory(String category) async {
     selectedCategory = category;
     await load();
