@@ -20,35 +20,46 @@ internal/warehouse/schema.sql   embedded schema + seed (product 1 = 1 unit)
 gen/warehouse/v1/               generated protobuf + gRPC stubs (committed)
 scripts/gen-proto.sh            regenerates gen/warehouse/v1/*.go
 scripts/build.sh                compiles the static binary into /tmp/warehouse
-Dockerfile.prebuilt             `FROM scratch` runtime image (default in compose)
-Dockerfile                      canonical multi-stage build (needs golang image)
+Dockerfile.prebuilt             `FROM scratch` image for fast local rebuilds
+Dockerfile                      canonical multi-stage build (compose default)
 ```
 
 ## Build
 
-The static binary is compiled ahead of time, so the runtime image needs no Go
-toolchain and pulls nothing from the network:
+**Fresh clone: nothing to do.** `docker compose up -d --build` compiles the
+service from source inside the multi-stage `Dockerfile` (`golang:1.24-bookworm`
+builder + `alpine` runtime). The binary is not committed: `bin/` is ignored on
+purpose, so the image is always built from the Go source in the repository.
+
+```bash
+docker compose up -d --build warehouse warehouse-db
+```
+
+Dependencies are **vendored** in `services/warehouse/vendor/` (committed). The
+builder runs `go build -mod=vendor`, so it never contacts `proxy.golang.org`.
+Only the `golang:1.24-bookworm` base image is pulled, once.
+
+### Faster local rebuilds
+
+Compiling inside the `golang` builder pulls a ~900 MB base image. If the `app`
+container is already running (it ships a Go toolchain), this script compiles
+the binary there and builds the `FROM scratch` image instead:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build-warehouse.ps1
 ```
 
-That script compiles `services/warehouse/scripts/build.sh` inside the running
-`app` container (which has Go installed), copies the result to
-`services/warehouse/bin/warehouse`, and builds the `FROM scratch` image from
-`Dockerfile.prebuilt` (compose default).
+It runs `services/warehouse/scripts/build.sh` inside the `app` container, copies
+the result to `services/warehouse/bin/warehouse`, and builds
+`Dockerfile.prebuilt` by setting `WAREHOUSE_DOCKERFILE=Dockerfile.prebuilt` for
+that one compose invocation.
 
 Alternatively, with the Go toolchain on the host:
 
 ```bash
 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/warehouse ./cmd/server
-docker compose build warehouse
+WAREHOUSE_DOCKERFILE=Dockerfile.prebuilt docker compose build warehouse
 ```
-
-`Dockerfile` (multi-stage, `golang:1.23-bookworm` + `alpine`) is kept as the
-canonical reference build; use it with
-`docker compose build --build-arg` / `docker build -f Dockerfile .` when a
-normal registry pull is available.
 
 ## Run
 
@@ -77,7 +88,7 @@ docker compose exec -T -u root app \
 
 ```bash
 # or in a throw-away Go image
-docker run --rm -v "$($PWD.Path):/w" -w /w golang:1.23-bookworm \
+docker run --rm -v "$($PWD.Path):/w" -w /w golang:1.24-bookworm \
   bash /w/services/warehouse/scripts/gen-proto.sh
 ```
 

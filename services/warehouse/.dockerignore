@@ -1,0 +1,5 @@
+# Keep local build artifacts out of the build context.
+# vendor/ IS committed and IS required: the image builds with -mod=vendor.
+bin/
+bin.zip
+*.exe

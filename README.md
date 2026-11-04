@@ -42,9 +42,11 @@
 ### 1. تشغيل الحاويات (Docker)
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 
 ```
+
+> **خدمة المستودع (warehouse):** ما فيه ملف جاهز مرفوع على GitHub — المجلد `services/warehouse/bin/` مستثنى بالـ `.gitignore` عن قصد. الـ `docker compose` بيبنيها من كود Go مباشرة (multi-stage: `golang:1.24-bookworm` + `alpine`)، فأول `up --build` بعد أي نسخة جديدة بيكفي. إذا بدك بناء أسرع محلياً (بدون تحميل صورة golang): `powershell -ExecutionPolicy Bypass -File scripts/build-warehouse.ps1`.
 
 ### 2. تثبيت الحزم (Composer Install)
 

@@ -87,7 +87,11 @@ services:
   warehouse:
     build:
       context: ./services/warehouse
-      dockerfile: Dockerfile.prebuilt
+      # Default: compile from source in the golang builder, so a fresh clone
+      # works with `docker compose up -d --build` and needs no local binary.
+      # scripts/build-warehouse.ps1 sets WAREHOUSE_DOCKERFILE=Dockerfile.prebuilt
+      # to reuse the binary it just compiled (faster local rebuilds).
+      dockerfile: ${WAREHOUSE_DOCKERFILE:-Dockerfile}
     environment:
       DB_DSN: postgres://warehouse:warehouse@warehouse-db:5432/warehouse?sslmode=disable
       GRPC_PORT: 50051

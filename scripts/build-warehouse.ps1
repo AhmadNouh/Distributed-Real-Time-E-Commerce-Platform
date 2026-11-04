@@ -26,8 +26,17 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'docker compose cp failed' }
 
     Write-Host '==> building the runtime image (Dockerfile.prebuilt)'
-    docker compose build warehouse
-    if ($LASTEXITCODE -ne 0) { throw 'docker compose build failed' }
+    # compose defaults to the canonical multi-stage Dockerfile so that a fresh
+    # clone builds without any local artifact; here the binary already exists,
+    # so ask compose for the fast `FROM scratch` image instead.
+    $env:WAREHOUSE_DOCKERFILE = 'Dockerfile.prebuilt'
+    try {
+        docker compose build warehouse
+        if ($LASTEXITCODE -ne 0) { throw 'docker compose build failed' }
+    }
+    finally {
+        Remove-Item Env:\WAREHOUSE_DOCKERFILE -ErrorAction SilentlyContinue
+    }
 
     Write-Host '==> done. Start it with: docker compose up -d warehouse'
 }
