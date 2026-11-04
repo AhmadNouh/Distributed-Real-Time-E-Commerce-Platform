@@ -23,6 +23,7 @@ class ApiClient {
         // Unwrap it so the services see the payload whichever shape the route uses.
         final body = response.data;
         if (body is Map && body.containsKey('success') && body.containsKey('data')) {
+          response.extra['envelope'] = body; // keeps "meta" (notifications paging)
           response.data = body['data'];
         }
         handler.next(response);
@@ -45,6 +46,35 @@ class ApiClient {
     if (data is List) return data;
     if (data is Map && data['data'] is List) return data['data'] as List;
     return const [];
+  }
+
+  static const int pageSize = 50;
+  static const int _maxPages = 20;
+
+  /// GET [path] and follow the Laravel pagination, so rows after page 1 are not dropped.
+  /// Page info is in `last_page` of the paginator, or in `meta.last_page` (notifications).
+  Future<List> getAll(String path, {Map<String, dynamic> query = const {}}) async {
+    final rows = [];
+    var page = 1;
+    var lastPage = 1;
+    do {
+      final response = await dio.get(path, queryParameters: {...query, 'per_page': pageSize, 'page': page});
+      rows.addAll(listFrom(response.data));
+      lastPage = _lastPage(response);
+      page++;
+    } while (page <= lastPage && page <= _maxPages);
+    return rows;
+  }
+
+  static int _lastPage(Response response) {
+    final data = response.data;
+    final envelope = response.extra['envelope'];
+    final raw = data is Map
+        ? data['last_page']
+        : envelope is Map && envelope['meta'] is Map
+            ? envelope['meta']['last_page']
+            : null;
+    return int.tryParse('$raw') ?? 1;
   }
 
   /// Seconds to wait after a 429 response (Retry-After header), 60 when the header is missing
@@ -71,8 +101,11 @@ class ApiClient {
       if (data is Map) {
         final errors = data['errors'];
         if (errors is Map && errors.isNotEmpty) {
+          // 422: {"errors": {"email": ["The email has already been taken."]}}
+          // 409/503: the list holds objects (stock shortages), the "message" is the readable text.
           final first = errors.values.first;
-          if (first is List && first.isNotEmpty) return '${first.first}';
+          final text = first is List && first.isNotEmpty ? first.first : first;
+          if (text is String && text.isNotEmpty) return text;
         }
         final apiError = data['error'];
         if (apiError is Map && apiError['message'] != null) return '${apiError['message']}';

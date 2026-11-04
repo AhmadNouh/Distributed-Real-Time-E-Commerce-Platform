@@ -74,4 +74,71 @@ void main() {
     );
     expect(ApiClient.errorMessage(error), 'Invalid credentials');
   });
+
+  test('a 409 out-of-stock answer shows its message, not the raw shortage object', () {
+    final request = RequestOptions(path: '/orders');
+    final error = DioException(
+      requestOptions: request,
+      response: Response(requestOptions: request, statusCode: 409, data: {
+        'success': false,
+        'data': null,
+        'message': 'Insufficient stock for this order. Laptop: requested 5, available 1.',
+        'errors': {
+          'stock': [
+            {'product_id': 1, 'requested': 5, 'available': 1, 'name': 'Laptop'},
+          ],
+        },
+      }),
+    );
+    expect(ApiClient.errorMessage(error), 'Insufficient stock for this order. Laptop: requested 5, available 1.');
+  });
+
+  test('a 422 answer shows the first field error', () {
+    final request = RequestOptions(path: '/auth/register');
+    final error = DioException(
+      requestOptions: request,
+      response: Response(requestOptions: request, statusCode: 422, data: {
+        'message': 'The email has already been taken.',
+        'errors': {
+          'email': ['The email has already been taken.'],
+        },
+      }),
+    );
+    expect(ApiClient.errorMessage(error), 'The email has already been taken.');
+  });
+
+  test('getAll follows the paginator (products, orders)', () async {
+    final dio = ApiClient().dio;
+    dio.httpClientAdapter = _PagedAdapter();
+    final rows = await ApiClient().getAll('/products');
+    expect(rows.map((r) => r['id']), [1, 2, 3]);
+  });
+
+  test('getAll follows meta.last_page (notifications)', () async {
+    final dio = ApiClient().dio;
+    dio.httpClientAdapter = _PagedAdapter(useMeta: true);
+    final rows = await ApiClient().getAll('/notifications');
+    expect(rows.map((r) => r['id']), [1, 2, 3]);
+  });
+}
+
+/// Two pages: ids 1-2 on page 1, id 3 on page 2.
+class _PagedAdapter implements HttpClientAdapter {
+  _PagedAdapter({this.useMeta = false});
+  final bool useMeta;
+
+  @override
+  Future<ResponseBody> fetch(RequestOptions options, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
+    final page = options.queryParameters['page'] as int;
+    final rows = page == 1 ? [{'id': 1}, {'id': 2}] : [{'id': 3}];
+    final body = useMeta
+        ? {'success': true, 'data': rows, 'meta': {'current_page': page, 'last_page': 2}}
+        : {'success': true, 'data': {'current_page': page, 'last_page': 2, 'data': rows}, 'message': 'ok'};
+    return ResponseBody.fromString(jsonEncode(body), 200, headers: {
+      Headers.contentTypeHeader: ['application/json'],
+    });
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
