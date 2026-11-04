@@ -5,8 +5,8 @@ class NotificationService {
   final ApiClient _api = ApiClient();
 
   Future<List<ShopNotification>> getNotifications() async {
-    final response = await _api.dio.get('/notifications');
-    final list = ApiClient.listFrom(response.data)
+    final rows = await _api.getAll('/notifications');
+    final list = rows
         .map((e) => ShopNotification.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
     list.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // newest first
