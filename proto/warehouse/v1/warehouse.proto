@@ -7,7 +7,8 @@ option php_namespace = "Warehouse\\V1";
 option php_metadata_namespace = "Warehouse\\V1\\Metadata";
 
 // Where the generated Go code lives (Go module: ecommerce/warehouse).
-option go_package = "ecommerce/warehouse/gen/warehouse/v1;warehousev1";
+//option go_package = "ecommerce/warehouse/gen/warehouse/v1;warehousev1";
+option go_package = "warehouse/v1;warehousev1";
 
 // WarehouseService is the contract between the Laravel application and the
 // standalone warehouse (inventory) service. The service owns its own database;
@@ -16,6 +17,9 @@ service WarehouseService {
   // Returns how many units of a product are currently available for sale
   // (physical quantity minus units already reserved by other orders).
   rpc GetStock(GetStockRequest) returns (GetStockResponse);
+
+  // set stock 
+  rpc SetStock(SetStockRequest) returns (SetStockResponse);
 
   // Reserves every item of an order in ONE atomic call.
   // Either all requested quantities are reserved, or nothing is reserved.
@@ -29,6 +33,18 @@ service WarehouseService {
   rpc Release(ReleaseRequest) returns (ReleaseResponse);
 }
 
+
+message SetStockRequest {
+  int64 product_id = 1;
+  int64 quantity = 2;
+}
+
+message SetStockResponse {
+  int64 product_id = 1;
+  int64 quantity = 2;
+  bool success = 3;
+}
+  
 message GetStockRequest {
   int64 product_id = 1;
 }

@@ -2,12 +2,12 @@
 
 namespace App\Modules\Users\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Http\Controllers\Api\BaseApiController;
 use App\Modules\Users\Contracts\AuthService;
 use App\Modules\Users\Requests\Auth\LoginRequest;
+// use App\Modules\Users\Requests\Auth\RegisterRequest;
 use App\Modules\Users\Resources\UserResource;
-
+use Illuminate\Http\Request;
 
 class LoginController extends BaseApiController
 {
@@ -21,7 +21,7 @@ class LoginController extends BaseApiController
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6|confirmed',
-            'phone' => 'nullable|string',
+            'phone' => 'nullable|string|unique:users,phone',
             'role' => 'nullable|string|in:customer,admin'
         ]);
     

@@ -23,6 +23,20 @@ func NewServer(store *Store, log *slog.Logger) *Server {
 	return &Server{store: store, log: log}
 }
 
+func (s *Server) SetStock(ctx context.Context, req *pb.SetStockRequest) (*pb.SetStockResponse, error) {
+    err := s.store.SetStock(ctx, req.GetProductId(), req.GetQuantity())
+    if err != nil {
+        s.log.Error("set stock failed", "product_id", req.GetProductId(), "error", err)
+        return &pb.SetStockResponse{Success: false}, status.Errorf(codes.Internal, "could not set stock: %v", err)
+    }
+
+    return &pb.SetStockResponse{
+        ProductId: req.GetProductId(),
+        Quantity:  req.GetQuantity(),
+        Success:   true,
+    }, nil
+}
+
 func (s *Server) GetStock(ctx context.Context, req *pb.GetStockRequest) (*pb.GetStockResponse, error) {
 	if req.GetProductId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "product_id must be a positive number")

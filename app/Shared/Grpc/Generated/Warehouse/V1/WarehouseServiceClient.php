@@ -36,6 +36,21 @@ class WarehouseServiceClient extends \Grpc\BaseStub {
     }
 
     /**
+     * set stock 
+     * @param \Warehouse\V1\SetStockRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Grpc\UnaryCall
+     */
+    public function SetStock(\Warehouse\V1\SetStockRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/warehouse.v1.WarehouseService/SetStock',
+        $argument,
+        ['\Warehouse\V1\SetStockResponse', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
      * Reserves every item of an order in ONE atomic call.
      * Either all requested quantities are reserved, or nothing is reserved.
      * The call is idempotent per order_uuid: repeating the same order_uuid

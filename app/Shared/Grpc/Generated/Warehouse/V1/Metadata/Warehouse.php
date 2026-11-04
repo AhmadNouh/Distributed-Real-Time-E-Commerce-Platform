@@ -16,8 +16,17 @@ class Warehouse
         }
         $pool->internalAddGeneratedFile(
             '
-š
-warehouse/v1/warehouse.protowarehouse.v1"%
+é
+warehouse/v1/warehouse.protowarehouse.v1"7
+SetStockRequest
+
+product_id (
+quantity ("I
+SetStockResponse
+
+product_id (
+quantity (
+success ("%
 GetStockRequest
 
 product_id ("H
@@ -49,9 +58,10 @@ product_id (
 order_uuid (	";
 ReleaseResponse
 released (
-released_items (2í
+released_items (2¸
 WarehouseServiceI
-GetStock.warehouse.v1.GetStockRequest.warehouse.v1.GetStockResponseF
+GetStock.warehouse.v1.GetStockRequest.warehouse.v1.GetStockResponseI
+SetStock.warehouse.v1.SetStockRequest.warehouse.v1.SetStockResponseF
 Reserve.warehouse.v1.ReserveRequest.warehouse.v1.ReserveResponseF
 Release.warehouse.v1.ReleaseRequest.warehouse.v1.ReleaseResponseBYZ0ecommerce/warehouse/gen/warehouse/v1;warehousev1ÊWarehouse\\V1âWarehouse\\V1\\Metadatabproto3'
         , true);

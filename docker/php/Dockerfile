@@ -13,5 +13,9 @@ ENV PHP_OPCACHE_ENABLE=true \
 
 # Installs the `grpc` extension. The script limits make to 2 jobs because the
 # grpc C++ build is OOM-killed with the default parallelism on small Docker VMs.
+USER root
+
 COPY docker/php/install-extensions.sh /tmp/install-extensions.sh
 RUN sh /tmp/install-extensions.sh
+
+USER www-data   

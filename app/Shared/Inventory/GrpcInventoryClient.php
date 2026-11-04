@@ -5,8 +5,7 @@ namespace App\Shared\Inventory;
 use App\Shared\Contracts\InventoryClient;
 use App\Shared\Contracts\ReservationResult;
 use App\Shared\Exceptions\WarehouseTimeoutException;
-use App\Shared\Exceptions\WarehouseUnavailableException;
-use Grpc\ChannelCredentials;
+use App\Shared\Exceptions\WarehouseUnavailableException;        
 use Throwable;
 use Warehouse\V1\GetStockRequest;
 use Warehouse\V1\OrderItem;
@@ -46,6 +45,21 @@ class GrpcInventoryClient implements InventoryClient
         $this->maxReceiveMessageSize = $maxReceiveMessageSize
             ?: (int) config('inventory.grpc.max_receive_message_size', 4 * 1024 * 1024);
     }
+
+
+    public function setStock(int $productId, int $quantity): bool
+    {
+        $request = new \Warehouse\V1\SetStockRequest();
+        $request->setProductId($productId);
+        $request->setQuantity($quantity);
+
+        [$response] = $this->invoke(
+            fn (array $options, array $metadata) => $this->client()->SetStock($request, $metadata, $options)
+        );
+
+        return (bool) $response->getSuccess();
+    }
+
 
     public function getStock(int $productId): int
     {
@@ -172,8 +186,8 @@ class GrpcInventoryClient implements InventoryClient
     private function client(): WarehouseServiceClient
     {
         return $this->client ??= new WarehouseServiceClient($this->address, [
-            'credentials' => ChannelCredentials::createInsecure(),
+            'credentials' => \Grpc\ChannelCredentials::createInsecure(),
             'grpc.max_receive_message_length' => $this->maxReceiveMessageSize,
         ]);
     }
-}
+}   

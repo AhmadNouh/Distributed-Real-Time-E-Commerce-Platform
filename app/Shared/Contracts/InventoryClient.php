@@ -14,27 +14,14 @@ namespace App\Shared\Contracts;
  */
 interface InventoryClient
 {
-    /**
-     * Sellable quantity (physical quantity minus reservations).
-     * Returns 0 when the warehouse does not know the product.
-     *
-     * @throws \App\Shared\Exceptions\WarehouseUnavailableException
-     */
+   
+    public function setStock(int $productId, int $quantity): bool;
+    
     public function getStock(int $productId): int;
 
-    /**
-     * Reserves every line of an order in one atomic call.
-     *
-     * @param  array<int, array{product_id: int, quantity: int}>  $items
-     *
-     * @throws \App\Shared\Exceptions\WarehouseUnavailableException
-     */
+    
     public function reserve(string $orderUuid, array $items): ReservationResult;
 
-    /**
-     * Returns the reserved quantities of an order to the pool (compensation).
-     *
-     * @throws \App\Shared\Exceptions\WarehouseUnavailableException
-     */
+  
     public function release(string $orderUuid): bool;
 }

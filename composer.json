@@ -9,13 +9,14 @@
         "php": "^8.3",
         "dedoc/scramble": "^0.13.52",
         "google/protobuf": "^3.21|^4.0",
-        "grpc/grpc": "^1.74",
+        "grpc/grpc": "^1.85",
         "laravel/framework": "^13.17",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "tymon/jwt-auth": "^2.3"
     },
     "require-dev": {
+        "barryvdh/laravel-ide-helper": "^3.8",
         "fakerphp/faker": "^1.23",
         "laravel/boost": "^2.10",
         "laravel/pail": "^1.2.5",
@@ -28,7 +29,7 @@
     "autoload": {
         "psr-4": {
             "App\\": "app/",
-            "Warehouse\\": "app/Shared/Grpc/Generated/Warehouse/",
+            "Warehouse\\V1\\": "app/Shared/Grpc/Generated/Warehouse/V1",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }

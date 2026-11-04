@@ -47,7 +47,7 @@ class ProductController extends BaseApiController
 
         return $this->successDataResponse(
             array_merge(ProductResource::make($product)->resolve(), [
-                'available_quantity' => $availableQuantity,
+                'available_quantity' => $availableQuantity ?? $product->stock,
                 'stock_status' => $stockStatus,
             ]),
             'Product details'
@@ -74,9 +74,21 @@ class ProductController extends BaseApiController
             $data['image'] = $request->file('image')->store('products', 'public');
         }
 
+        $stock = (int) ($data['stock'] ?? 0);
         $product = $this->products->create($data);
 
-        return $this->createdResponse(ProductResource::make($product), 'Product created successfully');
+        try {
+            $this->inventory->setStock((int) $product->id, $stock);
+            $stockStatus = 'available';
+        } catch (WarehouseUnavailableException $e) {
+            report($e); 
+            $stockStatus = 'unavailable';
+        }
+
+        return $this->createdResponse(
+            array_merge(ProductResource::make($product)->resolve(), ['stock_status' => $stockStatus]),
+            'Product created successfully'
+        );
     }
 
     public function update(Request $request, $id)

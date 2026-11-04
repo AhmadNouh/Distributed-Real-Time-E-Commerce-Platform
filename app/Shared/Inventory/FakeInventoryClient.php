@@ -29,6 +29,13 @@ class FakeInventoryClient implements InventoryClient
         return (int) ($this->stock[$productId] ?? 100);
     }
 
+    public function setStock(int $productId, int $quantity): bool
+{
+        $this->stock[$productId] = $quantity;
+    
+        return true;
+    }
+
     public function reserve(string $orderUuid, array $items): ReservationResult
     {
         if (isset($this->reservations[$orderUuid])) {
