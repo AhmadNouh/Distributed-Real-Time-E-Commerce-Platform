@@ -94,4 +94,8 @@ class OrderController extends BaseApiController
 
         return response()->json($order);
     }
+
+    // Route (modules/Orders/routes):  Route::post('orders/{id}/cancel', [OrderController::class, 'cancel']);
+
+    
 }

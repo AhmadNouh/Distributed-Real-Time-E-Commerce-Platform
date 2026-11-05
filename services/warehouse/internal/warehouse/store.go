@@ -94,7 +94,7 @@ func (s *Store) migrate(ctx context.Context) error {
 // SetStock
 
 func (s *Store) SetStock(ctx context.Context, productId int64, quantity int64) error {
-    query := `INSERT INTO warehouse_stocks (product_id, quantity, reserved, updated_at) 
+    query := `INSERT INTO stock (product_id, quantity, reserved, updated_at) 
               VALUES ($1, $2, 0, NOW()) 
               ON CONFLICT (product_id) 
               DO UPDATE SET quantity = $2, updated_at = NOW()`

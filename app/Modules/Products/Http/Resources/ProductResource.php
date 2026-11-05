@@ -14,10 +14,7 @@ class ProductResource extends JsonResource
             'description' => $this->description,
             'price' => $this->price,
             'category_id' => $this->category_id,
-            'stock' => (int) $this->stock,
-            'image' => $this->image 
-                ? (str_starts_with($this->image, 'http') ? $this->image : asset('storage/' . $this->image)) 
-                : null,
+            'image' => $this->image ? (str_starts_with($this->image, 'http') ? $this->image : asset($this->image)) : null,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

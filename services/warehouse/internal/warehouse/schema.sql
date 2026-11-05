@@ -29,5 +29,7 @@ INSERT INTO stock (product_id, quantity, reserved) VALUES
     (5, 100, 0),
     (6, 100, 0),
     (7, 100, 0),
-    (8, 100, 0)
+    (8, 100, 0),
+    (9, 100, 0),
+    (10, 100, 0)
 ON CONFLICT (product_id) DO NOTHING;

@@ -47,7 +47,7 @@ class ProductController extends BaseApiController
 
         return $this->successDataResponse(
             array_merge(ProductResource::make($product)->resolve(), [
-                'available_quantity' => $availableQuantity ?? $product->stock,
+                'available_quantity' => $availableQuantity,
                 'stock_status' => $stockStatus,
             ]),
             'Product details'

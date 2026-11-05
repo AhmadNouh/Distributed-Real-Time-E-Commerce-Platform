@@ -49,15 +49,15 @@ class WarehouseGrpcTest extends TestCase
         $before = $this->client->getStock(self::PLENTY_OF_STOCK);
 
         $result = $this->client->reserve($orderUuid, [
-            ['product_id' => self::PLENTY_OF_STOCK, 'quantity' => 3],
+            ['product_id' => 6, 'quantity' => 3],
         ]);
 
         $this->assertTrue($result->approved, 'The warehouse should approve a small reservation.');
         $this->assertSame('OK', $result->reason);
-        $this->assertSame($before - 3, $this->client->getStock(self::PLENTY_OF_STOCK));
+        $this->assertSame($before - 3, $this->client->getStock(6));
 
         $this->assertTrue($this->client->release($orderUuid));
-        $this->assertSame($before, $this->client->getStock(self::PLENTY_OF_STOCK));
+        $this->assertSame($before, $this->client->getStock(6));
     }
 
     public function test_reserving_more_than_available_is_rejected_with_a_shortage(): void
