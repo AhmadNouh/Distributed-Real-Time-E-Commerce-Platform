@@ -26,6 +26,16 @@ services:
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       REDIS_HOST: redis
+      INVENTORY_DRIVER: grpc
+      WAREHOUSE_ADDR: warehouse:50051
+      WAREHOUSE_TIMEOUT: 2
+      # Without opcache every request recompiles the whole framework from the
+      # bind mount (~2.4s per request on Docker Desktop). Timestamps are still
+      # checked, but only once a minute (freq=60), so code edits are picked up
+      # without recompiling the framework on every single request.
+      PHP_OPCACHE_ENABLE: "true"
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+      PHP_OPCACHE_REVALIDATE_FREQ: "60"
   queue-worker:
     build:
       context: .
@@ -36,6 +46,20 @@ services:
     depends_on:
       - app
       - redis
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ecommerce
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      INVENTORY_DRIVER: grpc
+      WAREHOUSE_ADDR: warehouse:50051
+      WAREHOUSE_TIMEOUT: 2
+      PHP_OPCACHE_ENABLE: "true"
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+      PHP_OPCACHE_REVALIDATE_FREQ: "60"
   postgres:
     image: postgres:16-alpine
     environment:
@@ -43,7 +67,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
   redis:
@@ -55,5 +79,45 @@ services:
     ports:
       - "8025:8025"
       - "1025:1025"
+  # ---------------------------------------------------------------------------
+  # Requirement 2: standalone warehouse (inventory) service, written in Go and
+  # exposing a gRPC API. It owns its own PostgreSQL database (warehouse_pgdata)
+  # and the Laravel app only reaches it through proto/warehouse/v1.
+  # ---------------------------------------------------------------------------
+  warehouse:
+    build:
+      context: ./services/warehouse
+      dockerfile: Dockerfile
+    environment:
+      DB_DSN: postgres://warehouse:warehouse@warehouse-db:5432/warehouse?sslmode=disable
+      GRPC_PORT: 50051
+    ports:
+      - "50051:50051"
+    depends_on:
+      warehouse-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/warehouse", "-healthcheck"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 5s
+  warehouse-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: warehouse
+      POSTGRES_USER: warehouse
+      POSTGRES_PASSWORD: warehouse
+    ports:
+      # 5433 on the host so it never clashes with the e-commerce database.
+      - "5434:5432"
+    volumes:
+      - warehouse_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warehouse -d warehouse"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 volumes:
   pgdata:
+  warehouse_pgdata:

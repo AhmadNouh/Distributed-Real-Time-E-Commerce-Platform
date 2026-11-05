@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1
+
+# Prebuilt runtime image.
+#
+# The static binary is compiled ahead of time (see scripts/build-warehouse.sh)
+# and copied in here, so this image needs no Go toolchain and pulls nothing
+# from the network. That matters because the canonical multi-stage build in
+# ./Dockerfile requires the ~900 MB `golang:1.23-bookworm` image.
+#
+# `FROM scratch` is possible because `CGO_ENABLED=0` produces a static binary
+# with zero shared-library dependencies. The only extra binary content is the
+# service itself; the healthcheck probes the service through its own binary
+# (`-healthcheck`) because scratch has no shell, curl or nc.
+
+FROM scratch
+
+COPY bin/warehouse /warehouse
+
+EXPOSE 50051
+
+HEALTHCHECK --interval=5s --timeout=4s --start-period=5s --retries=12 \
+    CMD ["/warehouse", "-healthcheck"]
+
+ENTRYPOINT ["/warehouse"]

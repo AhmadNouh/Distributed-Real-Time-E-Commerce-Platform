@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Modules\Users\Http\Middleware\EnsureAdmin::class,
             'ratelimit' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+            // 'role' => \App\Http\Middleware\CheckRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
