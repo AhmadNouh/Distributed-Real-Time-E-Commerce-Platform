@@ -1,5 +1,28 @@
 # version: '3.8'
 services:
+  # One-shot helper. Composer's dependencies live in the php_vendor volume
+  # (reading ~10k files through the Windows bind mount is very slow). On a
+  # fresh checkout that volume is empty, so this copies the host's ./vendor
+  # into it once. Run `composer install` on the host first.
+  vendor-init:
+    image: alpine
+    volumes:
+      - ./vendor:/src:ro
+      - php_vendor:/dest
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -f /dest/autoload.php ]; then
+          if [ -z "$$(ls -A /src 2>/dev/null)" ]; then
+            echo "ERROR: ./vendor is empty - run 'composer install' on the host first" >&2
+            exit 1
+          fi
+          echo "seeding php_vendor from ./vendor ..."
+          cp -a /src/. /dest/
+        else
+          echo "php_vendor already populated, skipping"
+        fi
   nginx:
     image: nginx:alpine
     ports:
@@ -21,8 +44,12 @@ services:
       # running `composer install` on the host.
       - php_vendor:/var/www/html/vendor
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      vendor-init:
+        condition: service_completed_successfully
     environment:
       DB_CONNECTION: pgsql
       DB_HOST: postgres
