@@ -3,6 +3,7 @@
 namespace App\Modules\Products\Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Modules\Products\Models\Product;
 
@@ -38,6 +39,24 @@ class ProductDatabaseSeeder extends Seeder
                 ]
             );
         }
+
+        $this->syncSequence();
+    }
+
+    /**
+     * The rows above are seeded with explicit ids, which does not advance the
+     * PostgreSQL sequence. Without this the next product created through the
+     * API would reuse an existing id and fail with a duplicate key error.
+     */
+    private function syncSequence(): void
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        DB::statement(
+            "SELECT setval(pg_get_serial_sequence('products', 'id'), COALESCE((SELECT MAX(id) FROM products), 1))"
+        );
     }
 
     private function storeImage(string $fileName, string $label, string $c1, string $c2): void

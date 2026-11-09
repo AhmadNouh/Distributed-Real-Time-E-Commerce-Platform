@@ -97,7 +97,7 @@ services:
       warehouse-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "/warehouse", "-healthcheck"]
+      test: ["CMD", "warehouse", "-healthcheck"]
       interval: 5s
       timeout: 4s
       retries: 12
