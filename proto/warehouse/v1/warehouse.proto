@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package warehouse.v1;
+
+// Where the generated PHP classes live (PSR-4 root: app/Shared/Grpc/Generated).
+option php_namespace = "Warehouse\\V1";
+option php_metadata_namespace = "Warehouse\\V1\\Metadata";
+
+// Where the generated Go code lives (Go module: ecommerce/warehouse).
+//option go_package = "ecommerce/warehouse/gen/warehouse/v1;warehousev1";
+option go_package = "warehouse/v1;warehousev1";
+
+// WarehouseService is the contract between the Laravel application and the
+// standalone warehouse (inventory) service. The service owns its own database;
+// the application never reads stock tables directly.
+service WarehouseService {
+  // Returns how many units of a product are currently available for sale
+  // (physical quantity minus units already reserved by other orders).
+  rpc GetStock(GetStockRequest) returns (GetStockResponse);
+
+  // set stock 
+  rpc SetStock(SetStockRequest) returns (SetStockResponse);
+
+  // Reserves every item of an order in ONE atomic call.
+  // Either all requested quantities are reserved, or nothing is reserved.
+  // The call is idempotent per order_uuid: repeating the same order_uuid
+  // returns the original outcome instead of reserving twice.
+  rpc Reserve(ReserveRequest) returns (ReserveResponse);
+
+  // Releases a previous reservation, returning the quantities to the pool.
+  // Used for compensation when the order could not be persisted.
+  // Idempotent: releasing an already released order returns released = true.
+  rpc Release(ReleaseRequest) returns (ReleaseResponse);
+}
+
+
+message SetStockRequest {
+  int64 product_id = 1;
+  int64 quantity = 2;
+}
+
+message SetStockResponse {
+  int64 product_id = 1;
+  int64 quantity = 2;
+  bool success = 3;
+}
+  
+message GetStockRequest {
+  int64 product_id = 1;
+}
+
+message GetStockResponse {
+  int64 product_id = 1;
+  // quantity - reserved, never negative.
+  int64 available = 2;
+  // false when the warehouse has no stock row for this product.
+  bool found = 3;
+}
+
+message OrderItem {
+  int64 product_id = 1;
+  int64 quantity = 2;
+}
+
+message ReserveRequest {
+  // Idempotency key supplied by the application (the order uuid).
+  string order_uuid = 1;
+  repeated OrderItem items = 2;
+}
+
+// Describes why a single item could not be reserved.
+message ItemShortage {
+  int64 product_id = 1;
+  int64 requested = 2;
+  int64 available = 3;
+}
+
+message ReserveResponse {
+  bool approved = 1;
+  // OK | INSUFFICIENT_STOCK | PRODUCT_NOT_FOUND | INVALID_REQUEST | ALREADY_RELEASED
+  string reason = 2;
+  // Only filled when approved = false.
+  repeated ItemShortage shortages = 3;
+  string reservation_id = 4;
+}
+
+message ReleaseRequest {
+  string order_uuid = 1;
+}
+
+message ReleaseResponse {
+  bool released = 1;
+  int64 released_items = 2;
+}

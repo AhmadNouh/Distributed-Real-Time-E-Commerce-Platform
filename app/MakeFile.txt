@@ -1,0 +1,14 @@
+.PHONY: proto
+proto:
+	@echo "Generating gRPC stubs for Go and PHP..."
+	docker run --rm -v $(PWD):/workspace -w /workspace pitching/protoc-all \
+		-d proto \
+		-l php \
+		-o app/Shared/Grpc/Generated \
+		proto/warehouse/v1/warehouse.proto
+	docker run --rm -v $(PWD):/workspace -w /workspace pitching/protoc-all \
+		-d proto \
+		-l go \
+		-o . \
+		proto/warehouse/v1/warehouse.proto
+	@echo "gRPC stubs generated successfully!"
