@@ -15,6 +15,11 @@ services:
       dockerfile: docker/php/Dockerfile
     volumes:
       - ./:/var/www/html
+      # Composer's dependencies are ~10k files. Reading them through the
+      # Windows bind mount is very slow, so they live in a named volume that
+      # was copied from ./vendor once (see README/notes). Re-copy after
+      # running `composer install` on the host.
+      - php_vendor:/var/www/html/vendor
     depends_on:
       - postgres
       - redis
@@ -43,6 +48,7 @@ services:
     command: php artisan queue:work --sleep=3 --tries=3
     volumes:
       - ./:/var/www/html
+      - php_vendor:/var/www/html/vendor
     depends_on:
       - app
       - redis
@@ -121,3 +127,7 @@ services:
 volumes:
   pgdata:
   warehouse_pgdata:
+  # Pinned name: the volume was created and populated once with the host's
+  # ./vendor contents, so keep using the exact same volume.
+  php_vendor:
+    name: drtec_php_vendor
