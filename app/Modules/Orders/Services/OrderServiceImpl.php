@@ -31,17 +31,7 @@ class OrderServiceImpl implements OrderService
         private readonly InventoryClient $inventory,
     ) {}
 
-    /**
-     * Order creation flow (requirement 2):
-     *
-     *   1. resolve every product through the Products module (read only)
-     *   2. ask the warehouse to reserve ALL lines in a single gRPC call
-     *   3. only if the warehouse approves, persist the order
-     *   4. if persisting fails, release the reservation (compensation)
-     *
-     * Nothing is written to the orders tables before step 3 succeeds, so a
-     * rejected reservation can never leave a half-created order behind.
-     */
+    
     public function createFor(object $user, array $items, ?string $uuid = null): Order
     {
         $orderUuid = $uuid ?: (string) Str::uuid();
@@ -76,7 +66,6 @@ class OrderServiceImpl implements OrderService
             $total += $price * $quantity;
         }
 
-        // One call for the whole order: all lines are reserved or none is.
         $reservation = $this->inventory->reserve($orderUuid, $reservationItems);
 
         if (! $reservation->approved) {
@@ -101,13 +90,6 @@ class OrderServiceImpl implements OrderService
                 return $order->load('items');
             });
         } catch (Throwable $e) {
-            // The stock is already reserved at this point: give it back before
-            // surfacing the failure, otherwise the quantity would stay held by
-            // an order that does not exist.
-            //
-            // Exception: if this uuid already belongs to a stored order, the
-            // reservation is theirs (typical client retry) and must NOT be
-            // released, otherwise a real order would lose its stock.
             if (Order::where('uuid', $orderUuid)->exists()) {
                 Log::warning('Order already stored, keeping its warehouse reservation', [
                     'order_uuid' => $orderUuid,
@@ -129,7 +111,7 @@ class OrderServiceImpl implements OrderService
     {
         $query = $user->isAdmin() ? Order::query() : Order::where('user_id', $user->id);
 
-        return $query->with('items')->paginate($perPage);
+        return $query->with('items.product')->paginate($perPage);
     }
 
     public function changeStatus(int $orderId, string $status): Order
@@ -160,10 +142,17 @@ class OrderServiceImpl implements OrderService
         return $order;
     }
 
-    /**
-     * Turns a rejected reservation into an exception with a message a customer
-     * can actually read (product name, requested vs available).
-     */
+    public function findAllRecent(int $limit): \Illuminate\Database\Eloquent\Collection
+    {
+        return Order::latest()->take($limit)->get();
+    }
+
+    public function findWithEager(int $limit): \Illuminate\Database\Eloquent\Collection
+    {
+        return Order::with(['items.product'])->latest()->take($limit)->get();
+    }
+
+    
     private function stockRejection(\App\Shared\Contracts\ReservationResult $reservation): InsufficientStockException
     {
         $shortages = [];
@@ -192,9 +181,7 @@ class OrderServiceImpl implements OrderService
         return new InsufficientStockException($shortages, $message);
     }
 
-    /**
-     * Compensation helper: never lets a release failure hide the original error.
-     */
+    
     private function releaseQuietly(string $orderUuid, ?Throwable $original): void
     {
         try {

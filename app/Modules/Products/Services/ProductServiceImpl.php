@@ -5,33 +5,77 @@ namespace App\Modules\Products\Services;
 use App\Modules\Products\Contracts\ProductService;
 use App\Modules\Products\Models\Product;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 
 class ProductServiceImpl implements ProductService
 {
+    // public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
+    // {
+    //     $query = Product::query();
+
+    //     if (! empty($filters['category_id'])) {
+    //         $query->where('category_id', $filters['category_id']);
+    //     }
+
+    //     if (! empty($filters['search'])) {
+    //         $query->where('name', 'like', '%' . $filters['search'] . '%');
+    //     }
+
+    //     return $query->paginate($perPage);
+    // }
+
+    
+    private const CACHE_TTL = 300;
+
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
-    {
-        $query = Product::query();
+    {        
+        $page = (int) request('page', 1);
 
-        if (! empty($filters['category_id'])) {
-            $query->where('category_id', $filters['category_id']);
-        }
+        $cacheKey = 'products:list:' . md5(
+            strtolower((string) ($filters['search'] ?? ''))
+            . '|'
+            . ($filters['category_id'] ?? 'all')
+            . '|'
+            . $perPage
+            . '|'
+            . $page
+        );
 
-        if (! empty($filters['search'])) {
-            $query->where('name', 'like', '%' . $filters['search'] . '%');
-        }
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($filters, $perPage) {
+            $query = Product::query();
 
-        return $query->paginate($perPage);
+            if (! empty($filters['category_id'])) {
+                $query->where('category_id', $filters['category_id']);
+            }
+
+            if (! empty($filters['search'])) {
+                $query->where('name', 'like', '%' . $filters['search'] . '%');
+            }
+
+            return $query->paginate($perPage);
+        });
     }
 
-    public function find(int $id): ?Product
+    private function flushProductsCache(): void
     {
-        return Product::find($id);
+        $redis = \Illuminate\Support\Facades\Redis::connection('cache');
+
+        $keys = $redis->keys('*products:list:*');
+
+        if ($keys !== []) {
+            $redis->del(...$keys);
+        }
     }
+
 
     public function create(array $data): Product
     {
-        return Product::create($data);
+        $product = Product::create($data);
+        $this->flushProductsCache();
+        return $product;
     }
 
     public function update(int $id, array $data): ?Product
@@ -43,7 +87,7 @@ class ProductServiceImpl implements ProductService
         }
 
         $product->update($data);
-
+        $this->flushProductsCache();
         return $product;
     }
 
@@ -59,11 +103,23 @@ class ProductServiceImpl implements ProductService
             Storage::disk('public')->delete($product->image);
         }
 
-        return (bool) $product->delete();
+        $product = (bool) $product->delete();
+        $this->flushProductsCache();
+        return $product;
     }
 
     public function priceOf(int $productId): float
     {
         return (float) ($this->find($productId)?->price ?? 0);
+    }
+
+    public function find(int $id): ?Product // with N+1
+    {
+        return Product::find($id);
+    }
+
+    public function findMany(array $ids): Collection // solve N+1
+    {
+        return Product::whereIn('id', $ids)->get()->keyBy('id');
     }
 }

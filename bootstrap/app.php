@@ -17,8 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Modules\Users\Http\Middleware\EnsureAdmin::class,
             'ratelimit' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
             // 'role' => \App\Http\Middleware\CheckRole::class,
+            'etag' => \App\Shared\Middleware\ETag::class,
         ]);
     })
+    ->withCommands([
+    ])
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),

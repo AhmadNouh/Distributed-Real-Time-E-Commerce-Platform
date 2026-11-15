@@ -1,5 +1,8 @@
 <?php
+
+use App\Modules\Products\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
+
 
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -10,12 +13,14 @@ Route::prefix('v1')->group(function () {
     });
     Route::prefix('products')->group(function () {
         Route::get('categories', [\App\Modules\Products\Http\Controllers\CategoryController::class, 'index']);
-        Route::get('/', [\App\Modules\Products\Http\Controllers\ProductController::class, 'index']);
-        Route::get('/{id}', [\App\Modules\Products\Http\Controllers\ProductController::class, 'show']);
+        Route::get('/', [\App\Modules\Products\Http\Controllers\ProductController::class, 'index'])->middleware('etag');
+        Route::get('/{id}', [\App\Modules\Products\Http\Controllers\ProductController::class, 'show'])->middleware('etag');
         Route::post('/', [\App\Modules\Products\Http\Controllers\ProductController::class, 'store'])->middleware(['auth:api', 'admin']);
         Route::put('/{id}', [\App\Modules\Products\Http\Controllers\ProductController::class, 'update'])->middleware(['auth:api', 'admin']);
         Route::delete('/{id}', [\App\Modules\Products\Http\Controllers\ProductController::class, 'destroy'])->middleware(['auth:api', 'admin']);
-    });
+    
+        });
+        Route::get('/n1-experiment', [ProductController::class, 'n1Experiment']);    
     Route::prefix('orders')->group(function () {
         Route::post('/', [\App\Modules\Orders\Http\Controllers\OrderController::class, 'store'])->middleware('auth:api');
         Route::get('/', [\App\Modules\Orders\Http\Controllers\OrderController::class, 'index'])->middleware('auth:api');

@@ -7,6 +7,7 @@ use Illuminate\Database\Seeder;
 
 use App\Modules\Users\Database\Seeders\UserDatabaseSeeder;
 use App\Modules\Products\Database\Seeders\ProductDatabaseSeeder;
+use App\Modules\Products\Database\Seeders\PerformanceDatabaseSeeder;
 use App\Modules\Orders\Database\Seeders\OrderDatabaseSeeder;
 use App\Modules\Notifications\Database\Seeders\NotificationDatabaseSeeder;
 use App\Modules\Products\Database\Seeders\CategoryDatabaseSeeder;
@@ -23,7 +24,8 @@ class DatabaseSeeder extends Seeder
             CategoryDatabaseSeeder::class,
             ProductDatabaseSeeder::class,      
             OrderDatabaseSeeder::class,       
-            NotificationDatabaseSeeder::class, 
+            NotificationDatabaseSeeder::class,
+            PerformanceDatabaseSeeder::class,
         ]);
     }
 }

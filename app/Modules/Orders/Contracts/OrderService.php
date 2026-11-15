@@ -24,4 +24,14 @@ interface OrderService
      * @throws \InvalidArgumentException when the status transition is not allowed
      */
     public function changeStatus(int $orderId, string $status): Order;
+
+    /**
+     * Get the N most recent orders (naive / plain eager style).
+     */
+    public function findAllRecent(int $limit): \Illuminate\Database\Eloquent\Collection;
+
+    /**
+     * Get the N most recent orders with items and products already eager-loaded.
+     */
+    public function findWithEager(int $limit): \Illuminate\Database\Eloquent\Collection;
 }

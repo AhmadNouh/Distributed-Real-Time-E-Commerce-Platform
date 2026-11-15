@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'default' => env('CACHE_STORE', 'database'),
+    'default' => env('CACHE_STORE', 'redis'),
 
     /*
     |--------------------------------------------------------------------------
@@ -130,7 +130,12 @@ return [
     | cache to prevent gadget chain attacks if your APP_KEY is leaked.
     |
     */
-
-    'serializable_classes' => false,
+    
+    'serializable_classes' => [
+    \App\Modules\Products\Models\Product::class,
+    \Illuminate\Database\Eloquent\Collection::class,
+    \Illuminate\Pagination\LengthAwarePaginator::class,
+    \Illuminate\Support\Collection::class,
+    ],
 
 ];

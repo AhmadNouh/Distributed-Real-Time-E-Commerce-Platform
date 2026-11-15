@@ -9,13 +9,19 @@ use App\Modules\Products\Http\Resources\ProductResource;
 use App\Shared\Contracts\InventoryClient;
 use App\Shared\Exceptions\WarehouseUnavailableException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
 
 class ProductController extends BaseApiController
 {
     public function __construct(
         private readonly ProductService $products,
         private readonly InventoryClient $inventory,
+        private readonly \App\Modules\Orders\Contracts\OrderService $orders,
     ) {}
+
+
+
 
     public function index(Request $request)
     {
@@ -115,5 +121,56 @@ class ProductController extends BaseApiController
         }
 
         return $this->successResponse('Product deleted successfully');
+    }
+
+    /**
+     * N+1 query experiment.
+     *
+     * Compares naive lazy loading against eager loading of the same 30 orders.
+     * Accesses the Orders module through its OrderService contract (not the model directly).
+     */
+    public function n1Experiment()
+    {
+        $naive = $this->orders->findAllRecent(30);
+
+        $naiveQueries = $this->runQueryLog(function () use ($naive) {
+            foreach ($naive as $o) {
+                foreach ($o->items as $i) {
+                    $i->product->name;
+                }
+            }
+        });
+
+        $eager = $this->orders->findWithEager(30);
+
+        $eagerQueries = $this->runQueryLog(function () use ($eager) {
+            foreach ($eager as $o) {
+                foreach ($o->items as $i) {
+                    $i->product->name;
+                }
+            }
+        });
+
+        return $this->successDataResponse(
+            [
+                'naive_queries'  => $naiveQueries,
+                'eager_queries'  => $eagerQueries,
+                'orders_sampled' => 30,
+            ],
+            'N+1 experiment'
+        );
+    }
+
+    /**
+     * @param callable $callback
+     */
+    private function runQueryLog(callable $callback): int
+    {
+        DB::enableQueryLog();
+        $callback();
+        $queries = count((array) DB::getQueryLog());
+        DB::flushQueryLog();
+
+        return $queries;
     }
 }

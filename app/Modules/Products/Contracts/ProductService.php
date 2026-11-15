@@ -4,6 +4,7 @@ namespace App\Modules\Products\Contracts;
 
 use App\Modules\Products\Models\Product;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 /**
  * Public contract of the Products module.
@@ -23,9 +24,7 @@ interface ProductService
 
     public function delete(int $id): bool;
 
-    /**
-     * Returns the current price of a product (0 when it does not exist).
-     * Used by the Orders module while building an order.
-     */
+    public function findMany(array $ids): Collection;
+    
     public function priceOf(int $productId): float;
 }
