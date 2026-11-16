@@ -61,7 +61,7 @@ class ProductServiceImpl implements ProductService
 
     private function flushProductsCache(): void
     {
-        $redis = \Illuminate\Support\Facades\Redis::connection('cache');
+        $redis = \Illuminate\Support\Facades\Redis::connection('cache');    
 
         $keys = $redis->keys('*products:list:*');
 
