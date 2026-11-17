@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Api\BaseApiController;
 use App\Modules\Orders\Contracts\OrderService;
+use App\Modules\Orders\Events\OrderCreated;
 use App\Shared\Exceptions\InsufficientStockException;
 use App\Shared\Exceptions\WarehouseUnavailableException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -74,6 +75,7 @@ class OrderController extends BaseApiController
                 ['warehouse' => [$e->getMessage()]]
             );
         }
+
 
         return $this->createdResponse($order, 'Order created successfully');
     }

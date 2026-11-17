@@ -31,6 +31,33 @@ return [
 
     'connections' => [
 
+        // 'rabbitmq' => [
+        //     'driver' => 'rabbitmq',
+        //     'hosts' => [
+        //         [
+        //             'host' => env('RABBITMQ_HOST', 'rabbitmq'),
+        //             'port' => env('RABBITMQ_PORT', 5672),
+        //             'user' => env('RABBITMQ_USER', 'guest'),
+        //             'password' => env('RABBITMQ_PASSWORD', 'guest'),
+        //             'vhost' => env('RABBITMQ_VHOST', '/'),
+        //         ],
+        //     ],
+        //     'options' => [
+        //         'queue' => [
+        //             'prioritize_delayed' => false,
+        //             'queue_max_priority' => 10,
+        //             'exchange' => env('RABBITMQ_EXCHANGE', 'direct'),
+        //             'exchange_type' => 'direct',
+        //             'exchange_routing_key' => '%s',
+
+        //             // DLQ
+        //             'reroute_failed' => true, 
+        //             'failed_exchange' => '', 
+        //             'failed_routing_key' => 'dead_letter_queue', 
+        //         ],
+        //     ],
+        // ],
+
         'sync' => [
             'driver' => 'sync',
         ],

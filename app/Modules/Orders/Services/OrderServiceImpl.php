@@ -4,7 +4,9 @@ namespace App\Modules\Orders\Services;
 
 use App\Modules\Orders\Contracts\OrderService;
 use App\Modules\Orders\Events\OrderCreated;
+use App\Modules\Orders\Events\OrderCreatedRealTime;
 use App\Modules\Orders\Events\OrderStatusChanged;
+use App\Modules\Orders\Events\OrderStatusUpdated;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Products\Contracts\ProductService;
 use App\Shared\Contracts\InventoryClient;
@@ -73,23 +75,22 @@ class OrderServiceImpl implements OrderService
         }
 
         try {
-            return DB::transaction(function () use ($user, $orderUuid, $lines, $total) {
+           $order = DB::transaction(function () use ($user, $orderUuid, $lines, $total) {
                 $order = Order::create([
                     'user_id' => $user->id,
-                    'status' => 'pending',
-                    'total' => $total,
-                    'uuid' => $orderUuid,
+                    'status'  => 'pending',
+                    'total'   => $total,
+                    'uuid'    => $orderUuid,
                 ]);
 
-                foreach ($lines as $line) {
-                    $order->items()->create($line);
-                }
+                $createdItems = $order->items()->createMany($lines);
 
-                event(new OrderCreated($order));
+                $order->setRelation('items', $createdItems);
 
-                return $order->load('items');
+                return $order;
             });
-        } catch (Throwable $e) {
+        } 
+        catch (Throwable $e) {
             if (Order::where('uuid', $orderUuid)->exists()) {
                 Log::warning('Order already stored, keeping its warehouse reservation', [
                     'order_uuid' => $orderUuid,
@@ -100,21 +101,23 @@ class OrderServiceImpl implements OrderService
 
             throw $e;
         }
+        
+        try {
+            //OrderCreated::dispatch($order);
+            OrderCreatedRealTime::dispatch($order);
+        } 
+        
+        catch (Throwable $e) {
+            Log::error('Failed to dispatch OrderCreated event', [
+                'order_uuid' => $order->uuid,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    
+        return $order;
     }
 
-    public function find(int $id): ?Order
-    {
-        return Order::with('items')->find($id);
-    }
-
-    public function paginateFor(object $user, int $perPage = 15): LengthAwarePaginator
-    {
-        $query = $user->isAdmin() ? Order::query() : Order::where('user_id', $user->id);
-
-        return $query->with('items.product')->paginate($perPage);
-    }
-
-    public function changeStatus(int $orderId, string $status): Order
+     public function changeStatus(int $orderId, string $status): Order
     {
         $order = Order::find($orderId);
 
@@ -132,16 +135,39 @@ class OrderServiceImpl implements OrderService
 
         $order->update(['status' => $status]);
 
-        event(new OrderStatusChanged($order));
 
         if ($status === 'cancelled') {
-            // Cancelling means the goods go back on the shelf.
             $this->releaseQuietly($order->uuid, null);
+        }
+
+        try {
+            OrderStatusUpdated::dispatch($order);
+        } 
+        
+        catch (Throwable $e) {
+            Log::error('Failed to dispatch OrderStatusUpdated event', [
+                'order_uuid' => $order->uuid,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return $order;
     }
 
+
+    public function find(int $id): ?Order
+    {
+        return Order::with('items')->find($id);
+    }
+
+    public function paginateFor(object $user, int $perPage = 15): LengthAwarePaginator
+    {
+        $query = $user->isAdmin() ? Order::query() : Order::where('user_id', $user->id);
+
+        return $query->with('items.product')->paginate($perPage);
+    }
+
+   
     public function findAllRecent(int $limit): \Illuminate\Database\Eloquent\Collection
     {
         return Order::latest()->take($limit)->get();

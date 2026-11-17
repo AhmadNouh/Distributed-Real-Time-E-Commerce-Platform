@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
-use App\Modules\Notifications\Listeners\SendOrderNotification;
+
 use App\Modules\Orders\Events\OrderCreated;
-use App\Modules\Orders\Events\OrderStatusChanged;
+use App\Modules\Orders\Events\OrderStatusUpdated;
+use App\Modules\Orders\Listeners\SendOrderConfirmationNotification;
+use App\Modules\Orders\Listeners\SendOrderStatusUpdatedNotification;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -12,7 +14,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        
     }
 
     public function boot(): void
@@ -24,7 +26,8 @@ class AppServiceProvider extends ServiceProvider
             app_path('Modules/Notifications/Database/Migrations'),
         ]);
 
-        Event::listen(OrderCreated::class, SendOrderNotification::class);
-        Event::listen(OrderStatusChanged::class, SendOrderNotification::class);
+        
+        Event::listen(OrderCreated::class,SendOrderConfirmationNotification::class);
+        Event::listen(OrderStatusUpdated::class,SendOrderStatusUpdatedNotification::class);
     }
 }

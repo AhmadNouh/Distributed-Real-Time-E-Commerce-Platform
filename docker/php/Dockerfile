@@ -18,4 +18,7 @@ USER root
 COPY docker/php/install-extensions.sh /tmp/install-extensions.sh
 RUN sh /tmp/install-extensions.sh
 
+# this for open socket that use it rabbitmq with the php-amqplib library
+RUN install-php-extensions sockets 
+
 USER www-data   
