@@ -22,7 +22,7 @@ class OrderController extends BaseApiController
     {
         $orders = $this->orders->paginateFor(
             $request->user(),
-            $request->integer('per_page', 15)
+            $request->integer('per_page', 50)
         );
 
         return $this->successDataResponse($orders, 'Orders retrieved successfully');

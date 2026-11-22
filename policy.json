@@ -1,0 +1,1 @@
+{"pattern":"^orders_queue$","apply-to":"queues","priority":0,"definition":{"dead-letter-exchange":"amq.direct","dead-letter-routing-key":"orders_queue.dlq"}}

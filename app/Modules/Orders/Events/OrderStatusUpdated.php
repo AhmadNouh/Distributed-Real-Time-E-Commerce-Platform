@@ -5,6 +5,7 @@ namespace App\Modules\Orders\Events;
 use App\Modules\Orders\Models\Order;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -24,7 +25,7 @@ class OrderStatusUpdated implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new Channel('orders.' . $this->order->id),
+            new PrivateChannel('orders.' . $this->order->id),
         ];
     }
 

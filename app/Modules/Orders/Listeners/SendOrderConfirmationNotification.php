@@ -20,7 +20,7 @@ class SendOrderConfirmationNotification implements ShouldQueue
      */
     public $timeout = 120;
 
-    public $tries = 2; 
+    public $tries = 3; 
 
     public $backoff = 3; // الوقت بين كل محاولة و لي بعدها
 
@@ -30,6 +30,11 @@ class SendOrderConfirmationNotification implements ShouldQueue
     //     //throw new \Exception("خطأ متعمد لاختبار تحويل الرسالة إلى DLQ");
         
     //     Mail::to($event->order->user->email)->send(new OrderConfirmationMail($event->order));
+    // }
+
+
+    //  public function failed(OrderCreated $event, \Throwable $exception): void {
+    //      \Log::error("فشل إرسال بريد التأكيد للطلب رقم {$event->order->id}: " . $exception->getMessage()); 
     // }
 
       public function handle(OrderCreatedRealTime $event): void
